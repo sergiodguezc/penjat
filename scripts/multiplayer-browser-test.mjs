@@ -21,8 +21,8 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 // Compact ranking below the three-column layout since Phase 2D; PHASE_2C_BASELINE=1 expects the older stacked-only rule.
 const STACKED_MAX = 999, COMPACT_MAX = process.env.PHASE_2C_BASELINE === '1' ? 999 : 1299
 const copy = {
-  ca: { reconnecting: 'Reconnectant…', more: 'Veure tot', less: 'Veure menys', count: (n, d) => `${n} jugadors${d ? ` · ${d} ${d === 1 ? 'ha sortit' : 'han sortit'}` : ''}`, tied: (n) => `${n} jugadors empatats`, next: 'Torn següent', rematch: 'Revenja', notice: 'Un jugador ha perdut la connexió. Esperant que torni…' },
-  es: { reconnecting: 'Reconectando…', more: 'Ver todo', less: 'Ver menos', count: (n, d) => `${n} ${n === 1 ? 'jugador' : 'jugadores'}${d ? ` · ${d} ${d === 1 ? 'ha salido' : 'han salido'}` : ''}`, tied: (n) => `${n} jugadores empatados`, next: 'Siguiente turno', rematch: 'Revancha', notice: 'Un jugador ha perdido la conexión. Esperando a que vuelva…' },
+  ca: { reconnecting: 'Reconnectant…', more: 'Veure tot', less: 'Veure menys', count: (n, d) => `${n} jugadors${d ? ` · ${d} ${d === 1 ? 'ha sortit' : 'han sortit'}` : ''}`, tied: (n) => `${n} jugadors empatats`, next: 'Torn següent', rematch: 'Revenja', notice: (name) => `${name} ha perdut la connexió. Té 2 minuts per tornar.` },
+  es: { reconnecting: 'Reconectando…', more: 'Ver todo', less: 'Ver menos', count: (n, d) => `${n} ${n === 1 ? 'jugador' : 'jugadores'}${d ? ` · ${d} ${d === 1 ? 'ha salido' : 'han salido'}` : ''}`, tied: (n) => `${n} jugadores empatados`, next: 'Siguiente turno', rematch: 'Revancha', notice: (name) => `${name} ha perdido la conexión. Tiene 2 minutos para volver.` },
 }
 
 const sockets = []
@@ -58,7 +58,7 @@ async function scenario(driver, label, roster) {
     member.page = await driver.newPage({ width, height })
     member.t = copy[lang]
     await member.page.goto(`${origin}/`)
-    await member.page.eval(`(localStorage.setItem('hangman-interface-language', '${lang}'), sessionStorage.setItem('hangman-room-session', ${JSON.stringify(JSON.stringify(member.session))}), true)`)
+    await member.page.eval(`(localStorage.setItem('hangman-interface-language', '${lang}'), localStorage.setItem('hangman-room-session', JSON.stringify({ version: 1, ...${JSON.stringify(member.session)} })), true)`)
     await member.page.goto(`${origin}/multijugador/`)
   }
   for (const member of browsers) await member.page.waitFor('document.querySelector(".lobby-layout, .lobby-page")', `${member.name} lobby`)
@@ -207,7 +207,7 @@ async function scenario(driver, label, roster) {
         dropper = members.find((m) => !m.page && m !== host && m !== setter)
         dropper.socket.disconnect()
         await until((v) => v.players.find((p) => p.id === dropper.id)?.connectionState === 'reconnecting', 'reconnecting')
-        for (const member of browsers) await member.page.waitFor(`document.querySelector('.connection-notice')?.textContent === ${JSON.stringify(member.t.notice)}`, `${member.name} notice`)
+        for (const member of browsers) await member.page.waitFor(`document.querySelector('.connection-notice')?.textContent.startsWith(${JSON.stringify(member.t.notice(dropper.name))})`, `${member.name} notice`)
         await checkAll('player reconnecting')
         await phone.page.eval('(document.querySelector(".scoreboard-toggle").click(), true)')
         assert.equal(await phone.page.eval(`[...document.querySelectorAll('.scoreboard-full li')].find((li) => li.querySelector('.player-name').textContent === ${JSON.stringify(dropper.name)}).querySelector('small').textContent`), phone.t.reconnecting)

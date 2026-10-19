@@ -8,6 +8,7 @@ import { checkResponsiveScope } from './responsive-scope-checks.mjs'
 import { checkHomeNavigation, checkHomeLayout, checkSetupEmphasis, homeMetrics } from './homepage-browser-checks.mjs'
 import { checkSiteHeader } from './header-browser-checks.mjs'
 import { checkHistoryGuard } from './history-guard-browser-checks.mjs'
+import { checkReconnect } from './reconnect-browser-checks.mjs'
 
 const origin = process.env.TEST_SERVER_URL || 'http://127.0.0.1:3002'
 assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(new URL(origin).hostname), 'Browser tests must target a local server')
@@ -79,6 +80,7 @@ try {
   const historyTab = await newTab((await command('browser.createUserContext')).userContext)
   await checkHistoryGuard({ context: historyTab, command, evaluate, waitFor, navigate })
   await command('browsingContext.close', { context: historyTab })
+  await checkReconnect({ origin, command, evaluate, waitFor, navigate, newTab })
   await command('browsingContext.activate', { context: home })
   for (const language of ['ca', 'es']) {
     await navigate(home, '/')
@@ -132,17 +134,17 @@ try {
   const invitedRoom = await createRoom('New host')
   const source = await newTab(profile)
   await navigate(source, '/')
-  await evaluate(source, `sessionStorage.setItem('hangman-room-session', ${JSON.stringify(JSON.stringify(oldRoom))}); localStorage.setItem('hangman-name', 'Shared name')`)
+  await evaluate(source, `localStorage.setItem('hangman-room-session', JSON.stringify({ version: 1, ...${JSON.stringify(oldRoom)} })); localStorage.setItem('hangman-name', 'Shared name')`)
   await navigate(source, '/multijugador/')
   await waitFor(source, `document.body.innerText.includes(${JSON.stringify(oldRoom.roomCode)})`)
 
-  // A normal same-profile tab shares localStorage but has its own sessionStorage.
+  // A normal same-profile tab shares localStorage, room credentials included; the invitation still takes precedence.
   const shared = await newTab(profile)
   await navigate(shared, `/multijugador/?sala=${invitedRoom.roomCode}`)
   await waitFor(shared, "document.querySelector('.invitation-form') !== null")
   await checkResponsiveScope({ context:shared, command, evaluate, page:'invitation', root:'.invitation-card', selectors:'.invitation-card, .invitation-card *' })
   assert.equal(await evaluate(shared, "localStorage.getItem('hangman-name')"), 'Shared name')
-  assert.equal(await evaluate(shared, "sessionStorage.getItem('hangman-room-session')"), null)
+  assert.equal(JSON.parse(await evaluate(shared, "localStorage.getItem('hangman-room-session')")).roomCode, oldRoom.roomCode)
 
   // Separate user contexts have independent browser storage, like different devices.
   const isolated = await newTab(isolatedProfile)
@@ -150,7 +152,7 @@ try {
   await waitFor(isolated, "document.querySelector('.invitation-form') !== null")
   assert.equal(await evaluate(isolated, "localStorage.getItem('hangman-name')"), null)
 
-  // Actual opener-created tab inherits a copy of the previous room's sessionStorage.
+  // An opener-created tab sees the previous room's credentials too; the invitation it opens still wins.
   const before = new Set((await command('browsingContext.getTree')).contexts.map((item) => item.context))
   await evaluate(source, `window.open(${JSON.stringify(new URL(`/multijugador/?sala=${invitedRoom.roomCode}`, origin).href)}, '_blank'); true`)
   const tree = await command('browsingContext.getTree')
@@ -158,7 +160,7 @@ try {
   contexts.push(copied)
   await waitFor(copied, "document.readyState === 'complete' && document.body.innerText.length > 20")
   await waitFor(copied, baseline ? `document.body.innerText.includes(${JSON.stringify(oldRoom.roomCode)})` : "document.querySelector('.invitation-form') !== null")
-  assert.equal(JSON.parse(await evaluate(copied, "sessionStorage.getItem('hangman-room-session')")).roomCode, oldRoom.roomCode)
+  assert.equal(JSON.parse(await evaluate(copied, "localStorage.getItem('hangman-room-session')")).roomCode, oldRoom.roomCode)
   if (baseline) {
     assert.equal(await evaluate(copied, `document.body.innerText.includes(${JSON.stringify(invitedRoom.roomCode)})`), false)
     console.log('BASELINE reproduced F02: opener tab displays old room despite new invitation; ordinary shared tabs and isolated contexts display invitation.')
@@ -174,14 +176,14 @@ try {
     // Joining replaces credentials only after the new room accepts the player.
     await evaluate(copied, "document.querySelector('.invitation-form button.primary-action').click()")
     await waitFor(copied, "document.querySelector('.lobby-page') !== null")
-    assert.equal(JSON.parse(await evaluate(copied, "sessionStorage.getItem('hangman-room-session')")).roomCode, invitedRoom.roomCode)
+    assert.equal(JSON.parse(await evaluate(copied, "localStorage.getItem('hangman-room-session')")).roomCode, invitedRoom.roomCode)
     await navigate(copied, '/multijugador/?sala=bad')
     await waitFor(copied, "document.querySelector('.invitation-invalid') !== null")
-    assert.equal(JSON.parse(await evaluate(copied, "sessionStorage.getItem('hangman-room-session')")).roomCode, invitedRoom.roomCode)
+    assert.equal(JSON.parse(await evaluate(copied, "localStorage.getItem('hangman-room-session')")).roomCode, invitedRoom.roomCode)
     await navigate(copied, '/multijugador/')
     await waitFor(copied, "document.querySelector('.lobby-page') !== null")
     await evaluate(copied, "document.querySelector('.global-back-button').click()")
-    await waitFor(copied, "sessionStorage.getItem('hangman-room-session') === null")
+    await waitFor(copied, "localStorage.getItem('hangman-room-session') === null")
     // Join errors on the invitation page keep their own message: a room that filled up after the preview says so,
     // and only a real connection failure shows the connection error.
     const roomFull = { ca: 'La sala és plena.', es: 'La sala está llena.' }
@@ -189,7 +191,7 @@ try {
     const inviteError = () => evaluate(isolated, "document.querySelector('.invitation-form .form-error')?.textContent ?? ''")
     const joinInvitation = async (language, roomCode) => {
       await navigate(isolated, '/')
-      await evaluate(isolated, `localStorage.setItem('hangman-interface-language', '${language}'); localStorage.setItem('hangman-name', 'Convidada'); sessionStorage.clear(); true`)
+      await evaluate(isolated, `localStorage.setItem('hangman-interface-language', '${language}'); localStorage.setItem('hangman-name', 'Convidada'); sessionStorage.clear(); localStorage.removeItem('hangman-room-session'); true`)
       await navigate(isolated, `/multijugador/?sala=${roomCode}`)
       await waitFor(isolated, "document.querySelector('.invitation-form button.primary-action:not(:disabled)') !== null")
     }
@@ -220,7 +222,7 @@ try {
       await command('script.removePreloadScript', { script })
     }
     await navigate(isolated, '/')
-    await evaluate(isolated, "localStorage.removeItem('hangman-interface-language'); localStorage.removeItem('hangman-name'); sessionStorage.clear(); true")
+    await evaluate(isolated, "localStorage.removeItem('hangman-interface-language'); localStorage.removeItem('hangman-name'); sessionStorage.clear(); localStorage.removeItem('hangman-room-session'); true")
     console.log('Browser invitation tests passed: shared tabs, opener copy, isolated contexts, reload, same-room restoration, join, invalid invitation and explicit leave; join errors in CA/ES (room full, connection failure).')
 
     const learning = await newTab(isolatedProfile)
@@ -321,7 +323,7 @@ try {
       await evaluate(learning, "Array.from(document.querySelectorAll('.unit-summary-actions button')).find((b) => b.textContent === 'Repassa les fallades').click()")
       await waitFor(learning, `document.querySelector('.unit-head h1')?.textContent === 'Repàs: paraula 1 de ${failed}'`)
     }
-    await evaluate(learning, "localStorage.removeItem('penjat-learning'); sessionStorage.clear()")
+    await evaluate(learning, "localStorage.removeItem('penjat-learning'); sessionStorage.clear(); localStorage.removeItem('hangman-room-session')")
     console.log('Browser learning tests passed: start, mid-word and card refresh without double counting, bookmark, word card, unguarded return to units, CA/ES, layout at 1440/768/390, whole unit to summary, replay and review.')
 
     // Finish a match through departure while its last round is still choosing.
@@ -348,7 +350,7 @@ try {
     const leavingSocket = state.round.setterId === hostSession.playerId ? guestSocket : hostSocket
     const terminal = await newTab(isolatedProfile)
     await navigate(terminal, '/')
-    await evaluate(terminal, `sessionStorage.setItem('hangman-room-session', ${JSON.stringify(JSON.stringify(setterSession))})`)
+    await evaluate(terminal, `localStorage.setItem('hangman-room-session', JSON.stringify({ version: 1, ...${JSON.stringify(setterSession)} }))`)
     await navigate(terminal, '/multijugador/')
     await waitFor(terminal, "document.querySelector('.word-form') !== null")
     await checkResponsiveScope({ context:terminal, command, evaluate, page:'match', root:'.match-page', selectors:'.match-page, .match-page *' })

@@ -254,18 +254,18 @@ export async function checkSetupEmphasis({ context, command, evaluate, waitFor, 
   }
   // Submitting right after load, while App's connection handshake is still pending, must still reach the lobby
   // (a second connect() used to make the server drop the connection and the button stayed busy forever).
-  await evaluate(context, "localStorage.setItem('hangman-interface-language', 'ca'); localStorage.setItem('hangman-name', 'Ràpida'); sessionStorage.removeItem('hangman-room-session')")
+  await evaluate(context, "localStorage.setItem('hangman-interface-language', 'ca'); localStorage.setItem('hangman-name', 'Ràpida'); localStorage.removeItem('hangman-room-session')")
   await navigate(context, '/multijugador/')
   await evaluate(context, "document.querySelector('.setup-panel--create .primary-action').click()")
   await waitFor(context, "document.querySelector('.lobby-page') !== null")
   const code = await evaluate(context, "document.querySelector('.room-code').textContent")
-  await evaluate(context, "sessionStorage.removeItem('hangman-room-session')")
+  await evaluate(context, "localStorage.removeItem('hangman-room-session')")
   await navigate(context, '/multijugador/')
   await type('.setup-panel--join .setup-name input', 'Ràpid')
   await type('.room-code-input', code)
   await evaluate(context, "document.querySelector('.setup-panel--join .secondary-action').click()")
   await waitFor(context, "document.querySelector('.lobby-page') !== null && document.querySelectorAll('.player-list li').length === 2")
-  await evaluate(context, "sessionStorage.removeItem('hangman-room-session')")
+  await evaluate(context, "localStorage.removeItem('hangman-room-session')")
   await navigate(context, '/')
   await evaluate(context, "localStorage.setItem('hangman-interface-language', 'ca'); localStorage.removeItem('hangman-name')")
   console.log('Multiplayer setup passed in CA/ES: name-first self-contained cards; side by side with aligned buttons from 600px; phone accordion (collapsed start, exclusive, inert while closed); keyboard order and join validation; create and join submitted right after load.')

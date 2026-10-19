@@ -1,3 +1,4 @@
+import { AbsenceNotice } from './AbsenceNotice'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { MAX_ERRORS } from '../../shared/game'
 import type { Ack, PlayerGameView } from '../../shared/protocol'
@@ -69,7 +70,7 @@ export function FinalStandings({ standings, t }: { standings: Standing[]; t: Mul
           <span className="sr-only">{t.placeLabel(t.ordinal(standing.rank))}: </span>
           <span className="standing-name">{standing.name ?? t.unknownPlayer}</span>
           {standing.isSelf && <span className="standing-self"><span className="sr-only">, </span>{t.resultsYou}</span>}
-          {standing.presence !== 'connected' && <span className="standing-status"><span className="sr-only">, </span>{standing.presence === 'departed' ? t.statusDeparted : t.statusReconnecting}</span>}
+          {standing.presence !== 'connected' && <span className="standing-status"><span className="sr-only">, </span>{standing.presence === 'departed' ? t.statusDeparted : standing.presence === 'disconnected' ? t.statusDisconnected : t.statusReconnecting}</span>}
         </span>
         <span className="standing-score"><span aria-hidden="true">{standing.score}</span><span className="sr-only">, {t.points(standing.score)}</span></span>
       </li>
@@ -117,7 +118,8 @@ function RematchActions({ state, playerId, t, language, onRematch, onNewRoom, on
     {!rematch.available && <div className="rematch-unavailable" role="status">
       <strong>{t.rematchNotEnough}</strong><span>{t.rematchNotEnoughBody}</span>
     </div>}
-    {rematch.available && reconnecting.length > 0 && <p className="rematch-note" role="status">{t.rematchWaitingReconnect(listNames(reconnecting.map((player) => player.name), language))}</p>}
+    {rematch.available && state.skippablePlayerIds?.length > 0 && <AbsenceNotice state={state} t={t} language={language} onlyWhenBlocking />}
+    {rematch.available && reconnecting.length > 0 && !state.skippablePlayerIds?.length && <p className="rematch-note" role="status">{t.rematchWaitingReconnect(listNames(reconnecting.map((player) => player.name), language))}</p>}
     <div className="match-actions" ref={actionsRef}>
       <div className="match-actions-buttons">
         {!rematch.available ? <button type="button" className="primary-action" onClick={onNewRoom}>{t.createNewRoom}</button>

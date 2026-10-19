@@ -6,7 +6,8 @@ export type Voltes = typeof SUPPORTED_VOLTES[number]
 export type RoomStatus = 'waiting' | 'active' | 'match-over' | 'aborted' | 'closed'
 export type RoundStatus = 'choosing-word' | 'guessing' | 'round-over'
 export type PlayerRoundStatus = 'setter' | 'playing' | 'awaiting-forgiveness' | 'solved' | 'failed' | 'eliminated'
-export type PublicPlayerRoundStatus = Exclude<PlayerRoundStatus, 'setter'> | 'setter'
+/** `spectating`: back after being skipped (or away when the turn started); watches this turn, plays the next. */
+export type PublicPlayerRoundStatus = Exclude<PlayerRoundStatus, 'setter'> | 'setter' | 'spectating'
 export type ConnectionState = 'connected' | 'reconnecting' | 'disconnected'
 export type Player = { id: string; name: string; score: number; connectionState: ConnectionState; active: boolean }
 export type RoomSession = { roomCode: string; playerId: string; reconnectToken: string }
@@ -38,6 +39,8 @@ export type PlayerRoundView = {
   finishedAt: number | null
   resolutionTimeMs: number | null
   roundRank: number | null
+  /** Out of this turn only because of an absence: waiting for the next turn, not beaten. */
+  spectating: boolean
 }
 
 export type RoundResultEntry = {
@@ -90,6 +93,8 @@ export type PlayerGameView = {
   forgivenessRequests: ForgivenessRequest[]
   matchResult: MatchResult
   privateWord?: string
+  /** Reconnecting players whose absence blocks progression and whom this recipient may continue without. */
+  skippablePlayerIds: string[]
   reconnectedPlayerName?: string
   disconnectedPlayerName?: string
 }
@@ -110,12 +115,16 @@ export interface ClientToServerEvents {
   'chat:react': (payload: { messageId: string; reaction: ReactionType }, ack: Ack<MessageReactions>) => void
   'chat:typing': (payload: { isTyping: boolean }) => void
   'match:rematch': (ack: Ack) => void
+  /** Continue without a reconnecting player who blocks progression (host, or whoever would take over their turn). */
+  'room:continue-without': (payload: { playerId: string }, ack: Ack) => void
   'room:leave': () => void
 }
 
 export interface ServerToClientEvents {
   'room:state': (state: PlayerGameView) => void
   'room:error': (error: string) => void
+  /** This connection no longer represents its player: another tab or device resumed the same session. */
+  'room:replaced': () => void
   'chat:message': (message: ChatMessage) => void
   'chat:history': (messages: ChatMessage[]) => void
   'chat:reaction-updated': (payload: { messageId: string; reactions: MessageReactions }) => void

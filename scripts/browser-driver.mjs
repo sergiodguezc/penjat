@@ -144,7 +144,7 @@ async function chromium() {
 }
 
 // Classic WebDriver drives one window at a time, so each page switches to its own window before acting. Windows share
-// storage (one session); sessionStorage stays per window, which is where the room credentials live.
+// storage (one session), room credentials included, so only one browser player per WebKit session can hold a room.
 async function webkit() {
   const base = process.env.WEBKIT_WEBDRIVER || 'http://localhost:4445'
   const request = async (method, path, body) => {

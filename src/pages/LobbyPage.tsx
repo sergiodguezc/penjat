@@ -7,6 +7,8 @@ import { invitationUrl } from '../multiplayer/invitations'
 import { multiplayerTranslations } from '../multiplayer/i18n'
 import { errorMessage } from '../multiplayer/i18n'
 import { socket } from '../multiplayer/socket'
+import { isPresent } from '../multiplayer/presentation'
+import { AbsenceNotice } from '../components/AbsenceNotice'
 
 export function LobbyPage({ state, interfaceLanguage, messages, playerId, typingPlayers }: { state: PlayerGameView; interfaceLanguage: 'ca' | 'es'; messages: ChatMessage[]; playerId: string; typingPlayers: { playerId: string; playerName: string }[] }) {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
@@ -42,7 +44,8 @@ export function LobbyPage({ state, interfaceLanguage, messages, playerId, typing
   }
   const activePlayers = state.players.filter((player) => player.active)
   const canInvite = state.roomStatus === 'waiting' && activePlayers.length < MAX_ROOM_PLAYERS
-  const canStart = state.hostId === playerId && activePlayers.length >= 2
+  const presentPlayers = state.players.filter(isPresent)
+  const canStart = state.hostId === playerId && presentPlayers.length >= 2
   const start = () => { setStartError(''); socket.emit('room:start', (response) => { if (!response.ok) setStartError(errorMessage(response.error, t)) }) }
   return <main className="lobby-page" lang={interfaceLanguage}>
     <div className="lobby-layout"><section className="lobby-card">
@@ -53,11 +56,12 @@ export function LobbyPage({ state, interfaceLanguage, messages, playerId, typing
         <button className="secondary-action lobby-invite-button" type="button" onClick={invite}>{t.challengeFriend}</button>
         {inviteStatus !== 'idle' && <p role="status">{inviteStatus === 'copied' ? t.inviteCopied : t.inviteFailed}</p>}
       </div>}
-      <div className="waiting-pulse"><i /><span>{activePlayers.length < 2 ? t.waiting : t.waitingToStart}</span></div>
+      <div className="waiting-pulse"><i /><span>{presentPlayers.length < 2 ? t.waiting : t.waitingToStart}</span></div>
+      <AbsenceNotice state={state} t={t} language={interfaceLanguage} onlyWhenBlocking />
       {canStart && <button className="primary-action lobby-start" type="button" onClick={start}>{t.startMatch}</button>}
       {startError && <p className="form-error" role="alert">{startError}</p>}
       <div className="lobby-meta"><span>{getLanguageConfig(state.gameLanguage).name}</span><span>{t.voltes}: {state.voltes}</span><span>{activePlayers.length} / {MAX_ROOM_PLAYERS} {t.players}</span></div>
-      <ul className="player-list">{state.players.map((player) => <li key={player.id} className={player.active ? '' : 'player-departed'}><span>{player.name.charAt(0)}</span>{player.name}{player.id === state.hostId && <small>{t.host}</small>}</li>)}</ul>
+      <ul className="player-list">{state.players.map((player) => <li key={player.id} className={player.active ? '' : 'player-departed'}><span>{player.name.charAt(0)}</span>{player.name}{player.id === state.hostId && <small>{t.host}</small>}{player.active && player.connectionState !== 'connected' && <small>{player.connectionState === 'reconnecting' ? t.statusReconnecting : t.statusDisconnected}</small>}</li>)}</ul>
     </section><RoomChat messages={messages} currentPlayerId={playerId} typingPlayers={typingPlayers} t={t} /></div>
   </main>
 }

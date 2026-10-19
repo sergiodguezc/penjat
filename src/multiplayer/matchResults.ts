@@ -2,7 +2,7 @@ import type { PlayerGameView } from '../../shared/protocol'
 import { rankByScore } from '../../shared/ranking'
 import type { MultiplayerTranslations } from './i18n'
 
-export type StandingPresence = 'connected' | 'reconnecting' | 'departed'
+export type StandingPresence = 'connected' | 'reconnecting' | 'disconnected' | 'departed'
 export type Standing = { id: string; name: string | null; score: number; rank: number; isSelf: boolean; isLeader: boolean; presence: StandingPresence }
 type Leader = Pick<Standing, 'id' | 'name'>
 export type MatchOutcome =
@@ -24,7 +24,7 @@ export function matchStandings(state: Pick<PlayerGameView, 'players' | 'matchRes
   const ranked = rankByScore(ids.map((id) => ({ id, score: result.scores[id] })))
   return ranked.map(({ player: { id, score }, rank }) => {
     const player = players.get(id)
-    const presence: StandingPresence = !player?.active ? 'departed' : player.connectionState === 'reconnecting' ? 'reconnecting' : 'connected'
+    const presence: StandingPresence = !player?.active ? 'departed' : player.connectionState === 'connected' ? 'connected' : player.connectionState
     return { id, name: player?.name ?? null, score, rank, isSelf: id === selfId, isLeader: rank === 1, presence }
   })
 }

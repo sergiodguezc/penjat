@@ -14,6 +14,10 @@ type MutablePlayerRoundState = {
   finishedAt: number | null
   resolutionTimeMs: number | null
   roundRank: number | null
+  /** Away when the turn started (or this player returned after the word was set): watches, never scored or ranked. */
+  sittingOut: boolean
+  /** Eliminated because they were away, not beaten: shown as waiting for the next turn. */
+  absent: boolean
 }
 
 type MutableRoundState = {
@@ -48,7 +52,11 @@ export class GameRoom {
 
   constructor(readonly code: string, readonly language: Language, readonly voltes: Voltes, private readonly random = Math.random) {}
 
+  /** Seated members, including players who are away; only an explicit leave gives up the seat. */
   get activePlayers() { return this.players.filter((player) => player.active) }
+  /** Members the game can wait for: connected, or reconnecting within the grace period. Away players are skipped. */
+  get presentPlayers() { return this.players.filter((player) => this.isPresent(player.id)) }
+  get connectedPlayers() { return this.players.filter((player) => player.active && player.connectionState === 'connected') }
   get acceptingPlayers() { return this.roomStatus === 'waiting' && this.activePlayers.length < MAX_ROOM_PLAYERS }
   get totalTurns() { return this.matchRosterIds.length * this.voltes }
   get completedTurns() { return this.roomStatus === 'waiting' ? 0 : Math.min(this.turnIndex + (this.currentRound?.status === 'round-over' ? 1 : 0), this.totalTurns) }
@@ -64,9 +72,9 @@ export class GameRoom {
   start(playerId: string) {
     if (this.roomStatus !== 'waiting') throw new Error('cannot-start')
     if (playerId !== this.hostId) throw new Error('not-host')
-    const activeIds = this.activePlayers.map((player) => player.id)
-    if (activeIds.length < 2) throw new Error('not-enough-players')
-    this.matchRosterIds = [...activeIds]
+    if (this.presentPlayers.length < 2) throw new Error('not-enough-players')
+    // Away players keep their place in the rotation; their turns are skipped until they return.
+    this.matchRosterIds = this.activePlayers.map((player) => player.id)
     const firstSetterIndex = Math.floor(this.random() * this.matchRosterIds.length)
     this.matchRosterIds = this.matchRosterIds.slice(firstSetterIndex).concat(this.matchRosterIds.slice(0, firstSetterIndex))
     this.turnIndex = 0
@@ -89,10 +97,27 @@ export class GameRoom {
   resume(playerId: string, reconnectToken: string, socketId: string) {
     const player = this.player(playerId)
     if (!player || !player.active || player.reconnectToken !== reconnectToken) throw new Error('resume-rejected')
+    const wasAway = player.connectionState === 'disconnected'
     player.socketId = socketId
     player.connectionState = 'connected'
     this.reconnectedPlayerName = player.name
+    // Nothing is undone: a returning player keeps any turn result, and joins the current turn only before its word is set.
+    const state = this.currentRound?.playerStates.get(playerId)
+    if (wasAway && this.roomStatus === 'active' && this.currentRound?.status === 'choosing-word' && state?.sittingOut) {
+      this.currentRound.playerStates.set(playerId, this.newPlayerRoundState(playerId))
+    }
+    this.ensurePresentHost()
     return player
+  }
+
+  /** The reconnect grace period ran out: the seat, identity and score stay, but the game stops waiting for this player. */
+  markAway(playerId: string) {
+    const player = this.player(playerId)
+    if (!player?.active || player.connectionState !== 'reconnecting') return false
+    player.connectionState = 'disconnected'
+    this.disconnectedPlayerName = player.name
+    this.releaseFromPlay(playerId, false)
+    return true
   }
 
   setWord(playerId: string, input: unknown) {
@@ -183,10 +208,10 @@ export class GameRoom {
     this.requireConnected(playerId)
     if (this.rematchReady.has(playerId)) throw new Error('rematch-already-ready')
     this.rematchReady.add(playerId)
-    const eligible = this.activePlayers.map((player) => player.id)
-    if (eligible.length >= 2 && eligible.every((id) => this.rematchReady.has(id))) this.startRematch()
+    this.maybeStartRematch()
   }
 
+  /** Explicit departure: the seat is given up for good. */
   disconnect(playerId: string) {
     const leaving = this.player(playerId)
     if (!leaving || !leaving.active) return
@@ -194,8 +219,73 @@ export class GameRoom {
     leaving.socketId = null
     leaving.connectionState = 'disconnected'
     this.disconnectedPlayerName = leaving.name
+    this.releaseFromPlay(playerId, true)
+  }
+
+  /**
+   * Reconnecting players whose absence stops the room from moving on: a host the lobby needs to start, a setter choosing
+   * a word or holding a forgiveness decision, guessers when no connected player can still act in the round, the next
+   * setter at the end of a turn, and the last players a rematch is waiting for. Anything else simply carries on.
+   */
+  blockingPlayerIds(): string[] {
+    const reconnecting = (id: string | null) => Boolean(id && this.player(id)?.active && this.player(id)?.connectionState === 'reconnecting')
+    const connected = (id: string) => this.player(id)?.active && this.player(id)?.connectionState === 'connected'
+    const blocking = new Set<string>()
+    const round = this.currentRound
+    if (this.roomStatus === 'waiting' && reconnecting(this.hostId)) blocking.add(this.hostId!)
+    if (this.roomStatus === 'active' && round) {
+      if (round.status === 'choosing-word' && reconnecting(round.setterId)) blocking.add(round.setterId)
+      if (round.status === 'guessing') {
+        const pending = [...round.forgivenessRequests.values()].filter((request) => request.status === 'pending')
+        if (pending.length && reconnecting(round.setterId)) blocking.add(round.setterId)
+        const open = [...round.playerStates.values()].filter((state) => !this.isTerminal(state.status))
+        const someoneCanAct = open.some((state) => connected(state.playerId) && (state.status === 'playing' || connected(round.setterId)))
+        if (!someoneCanAct) for (const state of open) if (reconnecting(state.playerId)) blocking.add(state.playerId)
+      }
+      if (round.status === 'round-over') { const next = this.nextActiveSetterId(); if (reconnecting(next)) blocking.add(next!) }
+    }
+    if (this.roomStatus === 'match-over') {
+      const waitingFor = this.presentPlayers.filter((player) => !this.rematchReady.has(player.id))
+      if (this.presentPlayers.length >= 2 && waitingFor.length && waitingFor.every((player) => player.connectionState === 'reconnecting')) for (const player of waitingFor) blocking.add(player.id)
+    }
+    return [...blocking]
+  }
+
+  /** The host (or, if the host is the one missing, the first connected member) may continue without a blocking player,
+   and so may whoever would take over that player's turn as setter. */
+  canContinueWithout(actorId: string, targetId: string) {
+    const actor = this.player(actorId)
+    if (actorId === targetId || !actor?.active || actor.connectionState !== 'connected' || !this.blockingPlayerIds().includes(targetId)) return false
+    const host = this.player(this.hostId ?? '')
+    const effectiveHost = host && host.id !== targetId && host.active && host.connectionState === 'connected' ? host.id : this.connectedPlayers.find((player) => player.id !== targetId)?.id
+    if (actorId === effectiveHost) return true
+    const round = this.currentRound
+    const holdsTurn = round && this.roomStatus === 'active' && ((round.status === 'choosing-word' && round.setterId === targetId) || (round.status === 'round-over' && this.nextActiveSetterId() === targetId))
+    return Boolean(holdsTurn && this.successorSetter(targetId) === actorId)
+  }
+
+  /** Applies the away handling now instead of at the end of the grace period. A player who already came back wins. */
+  continueWithout(actorId: string, targetId: string) {
+    const target = this.player(targetId)
+    if (!target?.active) throw new Error('invalid-skip')
+    if (target.connectionState === 'connected') throw new Error('player-reconnected')
+    if (target.connectionState === 'disconnected') return false
+    if (!this.canContinueWithout(actorId, targetId)) throw new Error('cannot-skip-player')
+    return this.markAway(targetId)
+  }
+
+  private successorSetter(skippedId: string) {
+    for (let index = this.turnIndex + 1; index < this.totalTurns; index += 1) {
+      const id = this.matchRosterIds[index % this.matchRosterIds.length]
+      if (id !== skippedId && this.isPresent(id)) return id
+    }
+    return null
+  }
+
+  /** Shared by departure and absence: whatever was waiting on this player moves on (host, turn, guess, rematch). */
+  private releaseFromPlay(playerId: string, departing: boolean) {
     this.rematchReady.delete(playerId)
-    if (this.hostId === playerId) this.hostId = this.activePlayers[0]?.id ?? null
+    this.ensurePresentHost()
     const round = this.currentRound
     if (this.roomStatus === 'active' && round) {
       if (round.setterId === playerId) {
@@ -205,6 +295,9 @@ export class GameRoom {
         const state = round.playerStates.get(playerId)
         if (state && !this.isTerminal(state.status)) {
           this.finishPlayer(state, 'eliminated')
+          state.absent = !departing
+          // Away before the word was set: they never played this turn, so they watch it unscored and may still rejoin it.
+          if (!departing && round.status === 'choosing-word') state.sittingOut = true
           for (const request of round.forgivenessRequests.values()) {
             if (request.playerId === playerId && request.status === 'pending') {
               request.status = 'cancelled'
@@ -214,12 +307,22 @@ export class GameRoom {
           this.maybeFinishRound()
         }
       }
-      if (this.activePlayers.length < 2 || (this.currentRound?.status === 'round-over' && this.nextActiveSetterId() === null)) this.finishMatch()
+      if (this.presentPlayers.length < 2 || (this.currentRound?.status === 'round-over' && this.nextActiveSetterId() === null)) this.finishMatch()
     }
-    if (this.roomStatus === 'match-over') {
-      const eligible = this.activePlayers.map((player) => player.id)
-      if (eligible.length >= 2 && eligible.every((id) => this.rematchReady.has(id))) this.startRematch()
-    }
+    if (this.roomStatus === 'match-over') this.maybeStartRematch()
+  }
+
+  /** One host at a time: the role moves to the first connected member only when the host is gone or away. */
+  private ensurePresentHost() {
+    const host = this.hostId ? this.player(this.hostId) : undefined
+    if (host?.active && host.connectionState !== 'disconnected') return
+    // Nobody connected: an away host keeps the role until someone returns (a departed one passes it to any seat).
+    this.hostId = this.connectedPlayers[0]?.id ?? (host?.active ? host.id : this.presentPlayers[0]?.id ?? this.activePlayers[0]?.id ?? null)
+  }
+
+  private maybeStartRematch() {
+    const eligible = this.presentPlayers.map((player) => player.id)
+    if (eligible.length >= 2 && eligible.every((id) => this.rematchReady.has(id))) this.startRematch()
   }
 
   addChatMessage(playerId: string, input: unknown): ChatMessage {
@@ -271,6 +374,7 @@ export class GameRoom {
       observedPlayerId: isSetter ? this.observerBySetter.get(playerId) ?? null : null,
       forgivenessRequests: isSetter && round ? [...round.forgivenessRequests.values()] : [], matchResult: this.matchResult,
       reconnectedPlayerName: this.reconnectedPlayerName, disconnectedPlayerName: this.disconnectedPlayerName,
+      skippablePlayerIds: this.blockingPlayerIds().filter((targetId) => this.canContinueWithout(playerId, targetId)),
     }
     const observedId = isSetter ? this.observerBySetter.get(playerId) : undefined
     const observedState = observedId ? round?.playerStates.get(observedId) : undefined
@@ -287,19 +391,20 @@ export class GameRoom {
     this.matchResult = null
     this.rematchReady.clear()
     this.roomStatus = 'waiting'
-    this.start(this.hostId ?? this.activePlayers[0]?.id ?? '')
+    this.start(this.hostId ?? this.presentPlayers[0]?.id ?? '')
   }
 
   private startNextTurn() {
     while (this.turnIndex < this.totalTurns) {
       const setterId = this.matchRosterIds[this.turnIndex % this.matchRosterIds.length]
-      if (!this.player(setterId)?.active) { this.turnIndex += 1; continue }
+      if (!this.isPresent(setterId)) { this.turnIndex += 1; continue }
       const playerStates = new Map<string, MutablePlayerRoundState>()
       for (const id of this.matchRosterIds) {
-        if (id !== setterId && this.player(id)?.active) playerStates.set(id, this.newPlayerRoundState(id))
+        if (id === setterId || !this.player(id)?.active) continue
+        playerStates.set(id, this.isPresent(id) ? this.newPlayerRoundState(id) : { ...this.newPlayerRoundState(id), status: 'eliminated', sittingOut: true })
       }
       this.currentRound = { id: randomUUID(), number: this.turnIndex + 1, voltaNumber: Math.floor(this.turnIndex / this.matchRosterIds.length) + 1, setterId, secretWord: null, status: 'choosing-word', playerStates, forgivenessRequests: new Map(), ranking: [], results: [] }
-      const firstGuesserId = playerStates.keys().next().value
+      const firstGuesserId = [...playerStates.values()].find((state) => !state.sittingOut)?.playerId
       if (firstGuesserId) this.observerBySetter.set(setterId, firstGuesserId)
       else this.observerBySetter.delete(setterId)
       return
@@ -308,7 +413,7 @@ export class GameRoom {
   }
 
   private newPlayerRoundState(playerId: string): MutablePlayerRoundState {
-    return { playerId, status: 'playing', guessedLetters: new Set(), errors: 0, forgiven: false, startedAt: null, finishedAt: null, resolutionTimeMs: null, roundRank: null }
+    return { playerId, status: 'playing', guessedLetters: new Set(), errors: 0, forgiven: false, startedAt: null, finishedAt: null, resolutionTimeMs: null, roundRank: null, sittingOut: false, absent: false }
   }
 
   private createForgivenessRequest(round: MutableRoundState, playerId: string) {
@@ -326,8 +431,9 @@ export class GameRoom {
     const round = this.currentRound
     if (!round || round.status !== 'guessing' || [...round.playerStates.values()].some((state) => !this.isTerminal(state.status))) return
     round.status = 'round-over'
-    round.ranking = [...round.playerStates.values()].sort((a, b) => this.compareRoundStates(a, b)).map((state) => state.playerId)
-    const guesserCount = round.playerStates.size
+    const scored = [...round.playerStates.values()].filter((state) => !state.sittingOut)
+    round.ranking = scored.sort((a, b) => this.compareRoundStates(a, b)).map((state) => state.playerId)
+    const guesserCount = scored.length
     round.results = round.ranking.map((playerId, index) => {
       const state = round.playerStates.get(playerId)!
       state.roundRank = index + 1
@@ -346,7 +452,7 @@ export class GameRoom {
     })
     round.results.push({ playerId: round.setterId, position: null, status: 'setter', forgiven: false, errors: null, resolutionTimeMs: null, pointsAwarded: 0 })
     // No remaining turn has an active setter (including the last turn): nobody could continue, so the match ends.
-    if (this.activePlayers.length < 2 || this.nextActiveSetterId() === null) this.finishMatch()
+    if (this.presentPlayers.length < 2 || this.nextActiveSetterId() === null) this.finishMatch()
   }
 
   private compareRoundStates(a: MutablePlayerRoundState, b: MutablePlayerRoundState) {
@@ -381,14 +487,14 @@ export class GameRoom {
 
   private advanceAfterCompletedTurn() {
     this.turnIndex += 1
-    if (this.activePlayers.length < 2) this.finishMatch()
+    if (this.presentPlayers.length < 2) this.finishMatch()
     else this.startNextTurn()
   }
 
   private nextActiveSetterId() {
     for (let index = this.turnIndex + 1; index < this.totalTurns; index += 1) {
       const id = this.matchRosterIds[index % this.matchRosterIds.length]
-      if (this.player(id)?.active) return id
+      if (this.isPresent(id)) return id
     }
     return null
   }
@@ -403,6 +509,11 @@ export class GameRoom {
     if (!player?.active || player.connectionState !== 'connected') throw new Error('player-reconnecting')
   }
 
+  private isPresent(playerId: string) {
+    const player = this.player(playerId)
+    return Boolean(player?.active && player.connectionState !== 'disconnected')
+  }
+
   private isTerminal(status: PlayerRoundStatus) { return status === 'solved' || status === 'failed' || status === 'eliminated' }
 
   private shouldReveal(round: MutableRoundState) { return round.status === 'round-over' || this.roomStatus === 'match-over' }
@@ -410,7 +521,9 @@ export class GameRoom {
   private publicRoundStatus(playerId: string): PublicPlayer['roundStatus'] {
     if (!this.player(playerId)?.active) return 'eliminated'
     const round = this.currentRound
-    return round?.setterId === playerId ? 'setter' : round?.playerStates.get(playerId)?.status ?? 'playing'
+    if (round?.setterId === playerId) return 'setter'
+    const state = round?.playerStates.get(playerId)
+    return state?.sittingOut || state?.absent ? 'spectating' : state?.status ?? 'playing'
   }
 
   private roundView(round: MutableRoundState) {
@@ -423,6 +536,7 @@ export class GameRoom {
       playerId: state.playerId, status: state.status, guessedLetters, wrongLetters: round.secretWord ? guessedLetters.filter((guess) => !isCorrectGuess(round.secretWord!, guess, this.language)) : [], errors: state.errors,
       displayWord: round.secretWord ? displayWord(round.secretWord, state.guessedLetters, this.language, reveal) : [], forgiven: state.forgiven,
       startedAt: state.startedAt, finishedAt: state.finishedAt, resolutionTimeMs: state.resolutionTimeMs, roundRank: state.roundRank,
+      spectating: state.sittingOut || state.absent,
     }
   }
 }

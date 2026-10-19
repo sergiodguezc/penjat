@@ -179,7 +179,7 @@ export async function checkP0Terminal(api) {
   }
   const ratio = await checkContrast(evaluate,context,'.standing-rank','.standing-row')
   await key(command,context,'\uE007')
-  await waitFor(context,"document.querySelector('.setup') !== null && sessionStorage.getItem('hangman-room-session') === null")
+  await waitFor(context,"document.querySelector('.setup') !== null && localStorage.getItem('hangman-room-session') === null")
   console.log(`P0 terminal: no wordless board or impossible rematch; return to multiplayer clears membership. Ranking contrast ${ratio}:1. CA/ES at all five viewports.`)
 }
 

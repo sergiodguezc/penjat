@@ -88,7 +88,7 @@ export async function checkSiteHeader({ context, command, evaluate, waitFor, nav
   await evaluate(context, "document.querySelector('.setup-panel--create .setup-toggle')?.click()")
   await evaluate(context, "document.querySelector('.setup-panel--create .primary-action').click()")
   await waitFor(context, "document.querySelector('.lobby-page') !== null")
-  const room = await evaluate(context, "sessionStorage.getItem('hangman-room-session')")
+  const room = await evaluate(context, "localStorage.getItem('hangman-room-session')")
   assert.ok(room)
   for (const width of [390, 320]) {
     await viewport(width, 568)
@@ -105,12 +105,12 @@ export async function checkSiteHeader({ context, command, evaluate, waitFor, nav
   await evaluate(context, "document.querySelector('.exit-confirmation-dialog .secondary-action').click()")
   await waitFor(context, "document.querySelector('.exit-confirmation-dialog') === null")
   assert.equal(await evaluate(context, "location.pathname"), '/multijugador/')
-  assert.equal(await evaluate(context, "sessionStorage.getItem('hangman-room-session')"), room)
+  assert.equal(await evaluate(context, "localStorage.getItem('hangman-room-session')"), room)
   assert.ok(await evaluate(context, "document.querySelector('.lobby-page') !== null"))
   await evaluate(context, "document.querySelector('.site-brand').click()")
   await waitFor(context, "document.querySelector('.exit-confirmation-dialog[open]') !== null")
   await evaluate(context, "document.querySelector('.exit-confirmation-dialog .danger-action').click()")
-  await waitFor(context, "location.pathname === '/' && document.querySelector('.home-modes') !== null && sessionStorage.getItem('hangman-room-session') === null")
+  await waitFor(context, "location.pathname === '/' && document.querySelector('.home-modes') !== null && localStorage.getItem('hangman-room-session') === null")
   // Leave the shared profile as found: later checks rely on an isolated, nameless profile.
   await evaluate(context, "localStorage.removeItem('hangman-name')")
   console.log('Site header passed in CA/ES: phone menu keyboard/Escape/outside click/navigation/language/resize, current page, sticky scope, 320px room header and guarded room exit.')

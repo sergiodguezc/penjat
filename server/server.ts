@@ -118,10 +118,15 @@ const allowedOrigins = CLIENT_ORIGIN || (IS_PRODUCTION ? undefined : localDevelo
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   ...(allowedOrigins ? { cors: { origin: allowedOrigins } } : {}),
 })
-const games = new GameManager(process.env.DETERMINISTIC_FIRST_SETTER === '1' ? () => 0 : Math.random)
-const DISCONNECT_GRACE_MS = 25_000
-const disconnectTimers = new Map<string, NodeJS.Timeout>()
-const timerKey = (code: string, playerId: string) => `${code}:${playerId}`
+const broadcastRoom = (code: string) => {
+  const room = games.rooms.get(code)
+  if (!room) return
+  for (const player of room.players) if (player.socketId) io.to(player.socketId).emit('room:state', room.viewFor(player.id))
+}
+const games = new GameManager(process.env.DETERMINISTIC_FIRST_SETTER === '1' ? () => 0 : Math.random, {
+  onRoomChange: (code) => { console.info('player away after grace period', { roomCode: code }); broadcastRoom(code) },
+  onRoomExpired: (code) => console.info('empty room expired', { roomCode: code }),
+})
 
 const cleanName = (value: unknown) => typeof value === 'string' && value.trim().length >= 1 && value.trim().length <= 24 ? value.trim() : null
 const cleanVoltes = (value: unknown): Voltes | undefined => SUPPORTED_VOLTES.includes(value as Voltes) ? value as Voltes : undefined
@@ -135,11 +140,7 @@ const roomPreview = (rawCode: string) => {
 
 io.on('connection', (socket) => {
   console.info('socket connected', { socketId: socket.id })
-  const broadcast = (code: string) => {
-    const room = games.rooms.get(code)
-    if (!room) return
-    for (const player of room.players) if (player.socketId) io.to(player.socketId).emit('room:state', room.viewFor(player.id))
-  }
+  const broadcast = broadcastRoom
   const action = (ack: Ack, operation: () => void) => {
     try { operation(); ack({ ok: true, data: undefined }) }
     catch (error) { ack({ ok: false, error: error instanceof Error ? error.message : 'unknown-error' }) }
@@ -175,11 +176,13 @@ io.on('connection', (socket) => {
     const playerId = typeof payload?.playerId === 'string' ? payload.playerId : ''
     console.info('resume attempt', { roomCode, playerId, socketId: socket.id })
     try {
+      const previousSocketId = games.rooms.get(roomCode)?.player(playerId)?.socketId
       const room = games.resume(socket.id, roomCode, playerId, payload?.reconnectToken)
-      const key = timerKey(room.code, playerId)
-      const timer = disconnectTimers.get(key)
-      if (timer) clearTimeout(timer)
-      disconnectTimers.delete(key)
+      // Another tab or device that still held this player stops receiving the room and is told why.
+      if (previousSocketId && previousSocketId !== socket.id) {
+        io.in(previousSocketId).socketsLeave(room.code)
+        io.to(previousSocketId).emit('room:replaced')
+      }
       socket.join(room.code)
       ack({ ok: true, data: room.viewFor(playerId) })
       socket.emit('chat:history', room.chatHistory)
@@ -191,6 +194,13 @@ io.on('connection', (socket) => {
       console.info('resume rejected', { roomCode, playerId, socketId: socket.id, reason: message })
     }
   })
+
+  socket.on('room:continue-without', (payload, ack) => action(ack, () => {
+    if (typeof payload?.playerId !== 'string') throw new Error('invalid-skip')
+    const room = games.continueWithout(socket.id, payload.playerId)
+    console.info('continued without player', { roomCode: room.code, playerId: payload.playerId })
+    broadcast(room.code)
+  }))
 
   socket.on('room:start', (ack) => action(ack, () => {
     const identity = games.identityForSocket(socket.id), room = identity?.room
@@ -275,9 +285,6 @@ io.on('connection', (socket) => {
   socket.on('room:leave', () => {
     const identity = games.identityForSocket(socket.id)
     if (!identity) return
-    const key = timerKey(identity.room.code, identity.playerId), timer = disconnectTimers.get(key)
-    if (timer) clearTimeout(timer)
-    disconnectTimers.delete(key)
     socket.to(identity.room.code).emit('chat:typing', { playerId: identity.playerId, playerName: identity.room.player(identity.playerId)?.name ?? '', isTyping: false })
     const room = games.leaveSocket(socket.id)
     socket.leave(identity.room.code)
@@ -287,20 +294,10 @@ io.on('connection', (socket) => {
     console.info('socket disconnected', { socketId: socket.id, reason })
     const identity = games.markReconnecting(socket.id)
     if (!identity) return
-    const { room, playerId } = identity, key = timerKey(room.code, playerId)
+    const { room, playerId } = identity
     socket.to(room.code).emit('chat:typing', { playerId, playerName: room.player(playerId)?.name ?? '', isTyping: false })
     broadcast(room.code)
     console.info('player marked reconnecting', { roomCode: room.code, playerId })
-    const timer = setTimeout(() => {
-      disconnectTimers.delete(key)
-      const current = room.player(playerId)
-      if (!current || current.connectionState === 'connected') return
-      games.removePlayer(playerId)
-      broadcast(room.code)
-      console.info('disconnect grace period expired', { roomCode: room.code, playerId })
-      if (!games.rooms.has(room.code)) console.info('room removed', { roomCode: room.code })
-    }, DISCONNECT_GRACE_MS)
-    disconnectTimers.set(key, timer)
   })
 })
 

@@ -1,4 +1,4 @@
-import type { PlayerGameView, RoomStatus, RoundStatus } from '../../shared/protocol'
+import type { PlayerGameView, PublicPlayer, RoomStatus, RoundStatus } from '../../shared/protocol'
 
 export type MultiplayerPhase = Exclude<RoomStatus, 'active'> | RoundStatus | 'waiting'
 
@@ -6,9 +6,12 @@ export function multiplayerPhase(state: Pick<PlayerGameView, 'roomStatus' | 'rou
   return state.roomStatus === 'active' ? state.round?.status ?? 'waiting' : state.roomStatus
 }
 
-// Reconnecting players remain eligible until the server removes them from the roster.
+/** Seated players the game waits for: connected or reconnecting. Away (disconnected) players keep their seat but are skipped. */
+export const isPresent = (player: Pick<PublicPlayer, 'active' | 'connectionState'>) => player.active && player.connectionState !== 'disconnected'
+
+// Reconnecting players remain eligible until the server marks them away.
 export function rematchAvailability(state: Pick<PlayerGameView, 'players' | 'match' | 'roomStatus'>) {
-  const activeIds = new Set(state.players.filter((player) => player.active).map((player) => player.id))
+  const activeIds = new Set(state.players.filter(isPresent).map((player) => player.id))
   return {
     available: state.roomStatus === 'match-over' && activeIds.size >= 2,
     total: activeIds.size,

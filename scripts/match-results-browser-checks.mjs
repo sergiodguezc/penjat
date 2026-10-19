@@ -43,7 +43,7 @@ export async function checkMatchResultsFlow({ origin, io, sockets, command, eval
   await command('browsingContext.setViewport', { context, viewport: { width: 1440, height: 900 } })
   await navigate(context, '/')
   await evaluate(context, "localStorage.setItem('hangman-interface-language', 'ca')")
-  await evaluate(context, `sessionStorage.setItem('hangman-room-session', ${JSON.stringify(JSON.stringify(browserJoin.data.session))})`)
+  await evaluate(context, `localStorage.setItem('hangman-room-session', JSON.stringify({ version: 1, ...${JSON.stringify(browserJoin.data.session)} }))`)
   await navigate(context, '/multijugador/')
   await waitFor(context, "document.querySelector('.lobby-layout, .lobby-page, .player-list') !== null")
   assert.equal((await emit(host, 'room:start')).ok, true)

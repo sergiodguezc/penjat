@@ -12,7 +12,9 @@ import { SiteHeader } from './components/SiteHeader'
 import { SiteFooter } from './components/SiteFooter'
 import { INTERFACE_LANGUAGE_STORAGE_KEY, readInterfaceLanguage } from './localization'
 import { normalizeInvitationCode, shouldResumeRoomSession } from './multiplayer/invitations'
-import { clearRoomSession, loadRoomSession, socket } from './multiplayer/socket'
+import { REQUEST_TIMEOUT_MS, socket } from './multiplayer/socket'
+import { createRoomRestorer, loadRoomSession, type RestoreStatus, type RoomRestorer } from './multiplayer/roomSession'
+import { RoomRestoreNotice, SelfConnectionNotice } from './components/RoomRestoreNotice'
 import { normalizeRoute, type Route } from './routing'
 import { historyIndex, resolveHistoryMove } from './navigation/history'
 import './App.css'
@@ -97,6 +99,12 @@ function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [playerId, setPlayerId] = useState(() => loadRoomSession()?.playerId ?? '')
   const [notice, setNotice] = useState('')
+  // Restoring a stored room starts before the first paint, so a refresh shows the reconnecting state, not the home page.
+  const [restoreStatus, setRestoreStatus] = useState<RestoreStatus>(() => {
+    const session = loadRoomSession()
+    return session && shouldResumeRoomSession(session.roomCode, readInvitationCode()) ? 'restoring' : 'idle'
+  })
+  const restorer = useRef<RoomRestorer | null>(null)
   const [typingPlayers, setTypingPlayers] = useState<Record<string, { playerId: string; playerName: string }>>({})
   const [view, setView] = useState<Mode>(() => routeDescriptions[normalizeRoute(window.location.pathname)].mode)
   // The open learning unit; null shows the unit list. A refresh reopens it; any page change returns to the list (progress is saved).
@@ -129,20 +137,28 @@ function App() {
       return next
     })
     socket.on('chat:typing', typing)
-    const resume = () => {
-      const session = loadRoomSession()
-      if (!session || !shouldResumeRoomSession(session.roomCode, readInvitationCode())) return
-      socket.emit('room:resume', session, (response) => {
-        if (!shouldResumeRoomSession(session.roomCode, readInvitationCode()) || loadRoomSession()?.reconnectToken !== session.reconnectToken) return
-        if (response.ok) { setPlayerId(session.playerId); setRoom(response.data); return }
-        clearRoomSession(); setPlayerId(''); setRoom(null); setMessages([]); setNotice(response.error)
-      })
-    }
-    socket.on('connect', resume)
-    if (!socket.connected) socket.connect(); else resume()
+    const roomRestorer = createRoomRestorer({
+      socket, invitation: readInvitationCode, timeoutMs: REQUEST_TIMEOUT_MS,
+      onStatus: (status) => {
+        setRestoreStatus(status)
+        if (status === 'replaced') { setRoom(null); setMessages([]); setTypingPlayers({}) }
+      },
+      onRestored: (session, view) => { setPlayerId(session.playerId); setNotice(''); setRoom(view) },
+      onInvalid: (error) => { setPlayerId(''); setRoom(null); setMessages([]); setTypingPlayers({}); setNotice(error) },
+    })
+    restorer.current = roomRestorer
+    // Returning to a backgrounded tab or regaining the network: bring a dropped connection back now; `connect` resumes.
+    const wake = () => { if (document.visibilityState === 'visible' && !socket.connected) roomRestorer.resume() }
+    document.addEventListener('visibilitychange', wake)
+    window.addEventListener('online', wake)
+    window.addEventListener('pageshow', wake)
+    if (!socket.active) socket.connect(); else if (socket.connected) roomRestorer.resume()
     return () => {
       window.removeEventListener('popstate', onPopState)
-      socket.off('room:state', update); socket.off('chat:history', history); socket.off('chat:message', message); socket.off('chat:reaction-updated', reaction); socket.off('chat:typing', typing); socket.off('connect', resume)
+      document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake); window.removeEventListener('pageshow', wake)
+      socket.off('room:state', update); socket.off('chat:history', history); socket.off('chat:message', message); socket.off('chat:reaction-updated', reaction); socket.off('chat:typing', typing)
+      roomRestorer.dispose()
+      if (restorer.current === roomRestorer) restorer.current = null
     }
   }, [])
 
@@ -202,7 +218,7 @@ function App() {
   const leaveRoom = () => {
     socket.emit('chat:typing', { isTyping: false })
     socket.emit('room:leave')
-    clearRoomSession()
+    restorer.current?.forget()
     setPlayerId('')
     setRoom(null)
     setMessages([])
@@ -213,6 +229,7 @@ function App() {
     goTo(destination, { replace: true })
   }
   const enterRoom = (view: PlayerGameView, id: string) => {
+    restorer.current?.reset()
     setMessages([])
     setPlayerId(id)
     setNotice('')
@@ -237,9 +254,11 @@ function App() {
     : { backToUnits: 'Volver a las unidades', leaveRoom: 'Salir de la sala', leaveMatch: 'Salir de la partida' }
   // What leaving the current page would end: a waiting room, an active match, or an unfinished daily game.
   // Learning is never guarded: every guess and finished word is already saved.
+  // A room still being restored is guarded like a room: going elsewhere then gives it up.
+  const restoringRoom = !room && (restoreStatus === 'restoring' || restoreStatus === 'failed')
   const exitGuard = (): ExitKind | null => room
     ? room.roomStatus === 'waiting' ? 'room' : room.roomStatus === 'active' ? 'game' : null
-    : view === 'daily' && dailyGameActive ? 'game' : null
+    : restoringRoom ? 'room' : view === 'daily' && dailyGameActive ? 'game' : null
   const requestConfirmedExit = (exit: () => void, confirmation: ExitKind | null) => {
     if (!confirmation) { exit(); return }
     setPendingExit({ kind: confirmation, exit })
@@ -252,7 +271,8 @@ function App() {
   }
   // Header links never drop a room or an unfinished game silently: leaving asks first, then goes to the chosen page.
   const navigate = (next: Route) => {
-    if (room) { requestConfirmedExit(() => leave(next), exitGuard()); return }
+    if (room || restoringRoom) { requestConfirmedExit(() => leave(next), exitGuard()); return }
+    if (restoreStatus === 'replaced') setRestoreStatus('idle')
     if (next === route) { goTo(next); return }
     requestConfirmedExit(() => goTo(next), exitGuard())
   }
@@ -269,14 +289,15 @@ function App() {
       const { delta } = move
       if (delta) window.history.go(-delta)
       else window.history.pushState({ penjatIndex: ++historyPosition.current }, '', shownUrl.current)
-      setPendingExit({ kind: exitGuard() ?? 'game', exit: delta ? () => { allowHistoryMove.current = true; window.history.go(delta) } : () => room ? leave(next) : goTo(next) })
+      setPendingExit({ kind: exitGuard() ?? 'game', exit: delta ? () => { allowHistoryMove.current = true; window.history.go(delta) } : () => room || restoringRoom ? leave(next) : goTo(next) })
       return
     }
     setPendingExit(null)
     historyPosition.current = targetIndex ?? historyPosition.current + 1
     window.history.replaceState({ penjatIndex: historyPosition.current }, '', `${next}${window.location.search}${window.location.hash}`)
     shownUrl.current = `${next}${window.location.search}`
-    if (room) leaveRoom()
+    if (room || restoringRoom) leaveRoom()
+    if (restoreStatus === 'replaced') setRestoreStatus('idle')
     setRoute(next)
     setView(routeDescriptions[next].mode)
     setInvitedRoomCode(next === '/multijugador/' ? readInvitationCode() : null)
@@ -289,18 +310,22 @@ function App() {
   }
   useEffect(() => { popStateHandler.current = handlePopState })
   const exitDialog = pendingExit ? <ExitConfirmationDialog language={interfaceLanguage} kind={pendingExit.kind} onCancel={cancelExit} onConfirm={confirmExit} /> : null
-  const section = room ? 'multiplayer' : view
+  const section = room || restoreStatus !== 'idle' ? 'multiplayer' : view
   const header = (exit?: { label: string; onExit: () => void }) => <SiteHeader language={interfaceLanguage} current={section} onLanguage={changeInterfaceLanguage}
     onNavigate={navigate} exit={exit} sticky={!room && (view === 'home' || view === 'help' || view === 'multiplayer')} />
   const footer = <SiteFooter language={interfaceLanguage} onNavigate={navigate} />
 
+  const retryRestore = () => restorer.current?.retry()
+  const connectionNotice = <SelfConnectionNotice language={interfaceLanguage} status={restoreStatus} onRetry={retryRestore} />
+  if (!room && restoreStatus !== 'idle') return <>{header()}<RoomRestoreNotice language={interfaceLanguage} status={restoreStatus} roomCode={loadRoomSession()?.roomCode ?? null}
+    onRetry={retryRestore} onLeave={() => leave()} onDismiss={() => { setRestoreStatus('idle'); goTo('/multijugador/') }} />{exitDialog}</>
   if (!room && view === 'learning') return <>{header(learningUnit ? { label: navigationCopy.backToUnits, onExit: () => setLearningUnit(null) } : undefined)}<LearningPage language={interfaceLanguage} unitId={learningUnit} onUnit={setLearningUnit} />{exitDialog}</>
   if (!room && view === 'daily') return <>{header()}<DailyChallengePage language={interfaceLanguage} onActiveGameChange={setDailyGameActive} onHome={returnHome} />{exitDialog}</>
   if (!room && view === 'multiplayer') return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} invitedRoomCode={invitedRoomCode} onGameLanguage={changeGameLanguage} onEnter={enterRoom} onLearn={startLearning} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="multiplayer" />{footer}{exitDialog}</>
   if (!room && view === 'help') return <>{header()}<HowToPlayPage language={interfaceLanguage} onNavigate={navigate} />{footer}{exitDialog}</>
   if (!room) return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} onGameLanguage={changeGameLanguage} onEnter={enterRoom} onLearn={startLearning} onDaily={startDaily} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="home" />{footer}{exitDialog}</>
-  if (room.roomStatus === 'waiting') return <>{header({ label: navigationCopy.leaveRoom, onExit: () => leave() })}<LobbyPage state={room} interfaceLanguage={interfaceLanguage} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
-  return <>{header({ label: room.roomStatus === 'active' ? navigationCopy.leaveMatch : navigationCopy.leaveRoom, onExit: () => requestConfirmedExit(() => leave(), room.roomStatus === 'active' ? 'game' : null) })}<GamePage onLeave={() => leave()} onExitToMenu={() => leave('/')} state={room} interfaceLanguage={interfaceLanguage} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
+  if (room.roomStatus === 'waiting') return <>{header({ label: navigationCopy.leaveRoom, onExit: () => leave() })}{connectionNotice}<LobbyPage state={room} interfaceLanguage={interfaceLanguage} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
+  return <>{header({ label: room.roomStatus === 'active' ? navigationCopy.leaveMatch : navigationCopy.leaveRoom, onExit: () => requestConfirmedExit(() => leave(), room.roomStatus === 'active' ? 'game' : null) })}{connectionNotice}<GamePage onLeave={() => leave()} onExitToMenu={() => leave('/')} state={room} interfaceLanguage={interfaceLanguage} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
 }
 
 export default App

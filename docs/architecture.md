@@ -28,12 +28,12 @@ flowchart LR
 | Homepage daily summary (number, won/lost, mistakes) | `HomePage`, pure `daily/homeSummary.ts` | Re-read on mount, focus, storage events and each minute; never shows the word |
 | Match, score, turn roster, forgiveness, secret word | `GameRoom` | Server process / room |
 | Identity → room/socket mappings | `GameManager` | Server process |
-| Disconnect timers | `server.ts` | 25 seconds after socket loss |
+| Absence and empty-room timers | `GameManager` (injectable scheduler) | Away 2 min after socket loss, or at once when a permitted player continues without a blocking one (seat kept); room deleted 30 min after nobody is connected |
 | Room view, chat display, typing display | `App` | Current client |
 | Name, languages, learning progress (`penjat-learning`) | `localStorage` | Browser origin |
-| Room code/player ID/reconnect token | `sessionStorage` | Tab session (can be copied by browser tab duplication/opener) |
+| Room code/player ID/reconnect token | `localStorage` (`hangman-room-session`, version 1; legacy unversioned sessionStorage entries are migrated) | Browser profile: survives refresh, closing and reopening the tab, and mobile tab discards; shared by tabs of one profile |
 
-Clients send intent (`game:guess`, `round:set-word`, etc.). Server resolves socket identity, validates, mutates `GameRoom`, acknowledges and broadcasts individually serialized `viewFor(playerId)` snapshots. Guessers never receive the active secret word or other players' private progress; setter observation receives a selected board and setter-only forgiveness requests. Chat uses separate events and a bounded in-memory history of 50 messages. Completion retains the room for rematches; explicit departure or expired reconnect grace removes membership, deleting the room when no active members remain.
+Clients send intent (`game:guess`, `round:set-word`, etc.). Server resolves socket identity, validates, mutates `GameRoom`, acknowledges and broadcasts individually serialized `viewFor(playerId)` snapshots. Guessers never receive the active secret word or other players' private progress; setter observation receives a selected board and setter-only forgiveness requests. Chat uses separate events and a bounded in-memory history of 50 messages. Completion retains the room for rematches. Only explicit departure removes membership (the last one deletes the room); after the reconnect grace a disconnected player is away, keeping the seat while the game moves on, and a room with nobody connected expires after the empty-room TTL.
 
 ## Vocabulary and local game logic
 
@@ -64,7 +64,7 @@ Plain CSS: `src/index.css` holds the font faces and shared tokens, and `src/App.
 
 ## Persistence and limits
 
-Daily storage (`penjat-daily-challenge`) stores one date's guesses/result; restore (including the homepage summary) reconstructs the round from guesses, not trusted score flags. Learning progress (`penjat-learning`) keeps the latest result per word, bookmarks and one session per unit; the open unit survives a refresh through session storage (`penjat-learning-unit`). Interface preference is separate from `hangman-game-language`; multiplayer name uses `hangman-name`. Room credentials use `hangman-room-session` in session storage. No accounts or cross-device saves exist. Restarting the server loses all rooms; multiple replicas cannot share state.
+Daily storage (`penjat-daily-challenge`) stores one date's guesses/result; restore (including the homepage summary) reconstructs the round from guesses, not trusted score flags. Learning progress (`penjat-learning`) keeps the latest result per word, bookmarks and one session per unit; the open unit survives a refresh through session storage (`penjat-learning-unit`). Interface preference is separate from `hangman-game-language`; multiplayer name uses `hangman-name`. Room credentials use `hangman-room-session` in local storage (`multiplayer/roomSession.ts`): malformed or other-version entries are ignored and there is no client-side expiry; `createRoomRestorer` owns restoration (one resume per connection, late replies ignored, retry, explicit leave). While restoring, `App` shows `RoomRestoreNotice` instead of a page, or the own-connection strip over a room still on screen. No accounts or cross-device saves exist. Restarting the server loses all rooms; multiple replicas cannot share state.
 
 ## Incremental concerns
 
@@ -87,7 +87,7 @@ Daily storage (`penjat-daily-challenge`) stores one date's guesses/result; resto
 ## Known limitations
 
 - Daily mode rolls over on remount, not at a guaranteed midnight refresh.
-- A one-player finished room can request a rematch but cannot start one; room capacity and reconnect grace are constants; active matches admit no late joins or spectators.
+- A one-player finished room can request a rematch but cannot start one; room capacity, absence grace and empty-room TTL are constants; away seats count toward room capacity; active matches admit no late joins or spectators.
 - On phones the match meta pills wrap to two rows; the "Torn n/m" pill shows completed turns.
 - Fraunces has no metric-matched fallback; its italic accent is synthesised (a real italic subset would cost ~55 kB).
 - Browser coverage is mainly headless Firefox with resized viewports (Chromium/WebKit were exercised once through `scripts/browser-driver.mjs`); no physical iOS/Android device or screen-reader session has been run.

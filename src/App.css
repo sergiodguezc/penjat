@@ -308,6 +308,10 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
 .invitation-invalid { display: grid; gap: 16px; }
 .invitation-invalid .form-error { margin: 0; }
 .invitation-error-actions { display: grid; gap: 10px; }
+.room-restore-card { display: grid; gap: 16px; }
+.room-restore-card h1 { margin: 0; color: var(--green-dark); font: 700 var(--text-page-title)/var(--leading-tight) var(--font-display); overflow-wrap: anywhere; }
+.room-restore-card p { margin: 0; color: var(--muted); line-height: var(--leading-body); }
+.connection-notice .text-button { margin-inline-start: var(--space-2); padding-block: 0; color: inherit; }
 .invitation-rules { display: grid; gap: 11px; padding: 15px; border-radius: 13px; background: var(--paper-deep); text-align: left; }
 .invitation-rules h3 { margin: 0; color: var(--green-dark); font-size: var(--text-body); font-weight: var(--weight-semibold); }
 .invitation-rules dl { display: grid; gap: 8px; margin: 0; }
@@ -733,6 +737,8 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
 .player-terminal-state span { font-size: var(--text-meta); }
 .solved-state { border: 2px solid var(--ink); color: var(--ink); background: var(--mar-surface); }
 .eliminated-state { border: 2px solid var(--error); color: var(--error); background: var(--error-surface); }
+/* Back after an absence: a neutral wait for the next turn, never the eliminated red. */
+.spectating-state { border: 1px solid var(--border); color: var(--ink); background: var(--paper-deep); }
 .incorrect-list { min-height: 3.25rem; color: var(--muted); text-align: center; font-size: var(--text-meta); }
 .incorrect-list span { display: block; margin-bottom: 2px; font-weight: var(--weight-semibold); }
 .incorrect-list strong { color: var(--red); font-size: var(--text-body); letter-spacing: .04em; }

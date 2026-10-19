@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { GameRoom } from '../server/game/GameRoom'
 import { chatSticksToBottom, multiplayerPhase } from '../src/multiplayer/presentation'
+import * as presentation from '../src/multiplayer/presentation'
 import { rankByScore } from '../shared/ranking'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -10,6 +11,7 @@ import { ObserverSelector } from '../src/components/ObserverSelector'
 import { PlayerRoundStatusNotice } from '../src/components/PlayerRoundStatusNotice'
 import { RoundResults } from '../src/components/RoundResults'
 import { Scoreboard } from '../src/components/Scoreboard'
+import { AbsenceNotice } from '../src/components/AbsenceNotice'
 import { RoomChat } from '../src/components/RoomChat'
 import { liveRanking } from '../src/multiplayer/liveRanking'
 import { FinalStandings } from '../src/components/MatchResults'
@@ -92,6 +94,43 @@ assert.doesNotMatch(activeClassification, /Manolo 1|>3<\/span>/)
 assert.match(scoreboardMarkup, /Ya no están en la sala/)
 assert.match(scoreboardMarkup, /<section class="departed-players"[^>]*>.*Manolo 1.*<strong>4<\/strong>/)
 assert.doesNotMatch(scoreboardMarkup.match(/<section class="departed-players"[\s\S]*?<\/section>/)?.[0] ?? '', /<span class="rank"|ha acertado|elige la palabra/)
+
+// An away player keeps a ranked seat and score, labelled as disconnected (not departed), and never blocks a rematch.
+{
+  const withAway: PublicPlayer[] = [...scoreboardPlayers, { id: 'D', name: 'Lluna', score: 3, connectionState: 'disconnected', active: true, roundStatus: 'eliminated' }]
+  for (const [language, label] of [['ca', 'Desconnectat'], ['es', 'Desconectado']] as const) {
+    const markup = renderToStaticMarkup(<Scoreboard players={withAway} setterId="C" currentId="B" t={multiplayerTranslations[language]} />)
+    const ranked = markup.match(/<ol>.*?<\/ol>/)?.[0] ?? ''
+    assert.match(ranked, new RegExp(`Lluna.*<strong>3</strong><small class="is-reconnecting">${label}</small>`))
+  }
+  const match = { status: 'match-over' as const, ownerId: 'B', turnOrder: [], turnIndex: 0, voltaNumber: 1, completedTurns: 0, totalTurns: 0, rematchReadyPlayerIds: ['B', 'C'] }
+  const rematch = presentation.rematchAvailability({ players: withAway, match, roomStatus: 'match-over' })
+  assert.equal(rematch.total, 2); assert.deepEqual(rematch.readyIds, ['B', 'C'])
+}
+
+// Back after an absence: a neutral "next turn" notice, never "Has quedat fora"; the scoreboard says the same.
+for (const language of ['ca', 'es'] as const) {
+  const t = multiplayerTranslations[language]
+  const markup = renderToStaticMarkup(<PlayerRoundStatusNotice phase="guessing" status="eliminated" spectating t={t} />)
+  assert.ok(markup.includes(t.spectatingTitle) && markup.includes(t.spectatingBody))
+  assert.ok(!markup.includes(t.youAreOut))
+  const board = renderToStaticMarkup(<Scoreboard players={[...scoreboardPlayers, { id: 'E', name: 'Torna', score: 1, connectionState: 'connected', active: true, roundStatus: 'spectating' }]} setterId="C" currentId="B" t={t} />)
+  assert.ok(board.includes(t.statusSpectating))
+}
+// The absence strip names who is reconnecting; its action appears only for players the server lets this viewer skip.
+{
+  const base = new GameRoom('ABSNT', 'ca', 1, () => 0)
+  base.addPlayer('h', 's-h', 't-h', 'Host'); base.addPlayer('g', 's-g', 't-g', 'Guest'); base.addPlayer('x', 's-x', 't-x', 'Xènia')
+  base.markReconnecting('h', 's-h')
+  for (const [viewer, offered] of [['g', true], ['x', false]] as const) {
+    const markup = renderToStaticMarkup(<AbsenceNotice state={base.viewFor(viewer)} t={multiplayerTranslations.ca} language="ca" />)
+    assert.ok(markup.includes('Host ha perdut la connexió. Té 2 minuts per tornar.'))
+    assert.equal(markup.includes('Continua sense Host'), offered)
+  }
+  const es = renderToStaticMarkup(<AbsenceNotice state={base.viewFor('g')} t={multiplayerTranslations.es} language="es" />)
+  assert.ok(es.includes('Host ha perdido la conexión. Tiene 2 minutos para volver.') && es.includes('Continuar sin Host'))
+  assert.equal(renderToStaticMarkup(<AbsenceNotice state={base.viewFor('x')} t={multiplayerTranslations.ca} language="ca" onlyWhenBlocking />), '')
+}
 
 const catalanScoreboard = renderToStaticMarkup(<Scoreboard players={scoreboardPlayers} setterId="C" currentId="B" t={multiplayerTranslations.ca} />)
 assert.match(catalanScoreboard, /Ja no són a la sala/)

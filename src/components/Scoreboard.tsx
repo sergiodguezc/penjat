@@ -10,8 +10,8 @@ export function Scoreboard({ players, setterId, currentId, t, defaultExpanded = 
   const [expanded, setExpanded] = useState(defaultExpanded)
   const id = useId()
   const { ranked, departed, leaders, self, selfShared, namedLeaders, showSelfLine, collapsible } = liveRanking(players, currentId)
-  const status = (player: PublicPlayer) => player.connectionState === 'reconnecting' ? t.statusReconnecting
-    : player.id === setterId ? t.setterStatus : player.roundStatus === 'solved' ? t.solved : player.roundStatus === 'awaiting-forgiveness' ? t.awaitingForgiveness
+  const status = (player: PublicPlayer) => player.connectionState === 'reconnecting' ? t.statusReconnecting : player.connectionState === 'disconnected' ? t.statusDisconnected
+    : player.id === setterId ? t.setterStatus : player.roundStatus === 'spectating' ? t.statusSpectating : player.roundStatus === 'solved' ? t.solved : player.roundStatus === 'awaiting-forgiveness' ? t.awaitingForgiveness
     : player.roundStatus === 'failed' || player.roundStatus === 'eliminated' ? t.eliminated : t.guessing
   const selfBadge = <span className="player-self">{t.you}</span>
   return <aside className={`scoreboard${collapsible ? ' is-collapsible' : ''}${expanded ? ' is-expanded' : ''}`} aria-labelledby={`${id}-title`}>
@@ -45,7 +45,7 @@ export function Scoreboard({ players, setterId, currentId, t, defaultExpanded = 
           {/* The self badge stays outside the name so wrapping a long name can never hide it. */}
           <span className="player-identity"><span className="player-name">{player.name}</span>{isSelf && selfBadge}</span>
           <strong>{player.score}</strong>
-          <small className={player.connectionState === 'reconnecting' ? 'is-reconnecting' : undefined}>{status(player)}</small>
+          <small className={player.connectionState !== 'connected' ? 'is-reconnecting' : undefined}>{status(player)}</small>
         </li>
       })}</ol>
       {departed.length > 0 && <section className="departed-players" aria-labelledby={`${id}-departed`}>
