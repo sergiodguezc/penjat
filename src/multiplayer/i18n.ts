@@ -53,6 +53,13 @@ const es = {
   selfReconnectFailed: 'No se puede conectar con el servidor. Seguimos intentándolo.',
   replacedTitle: 'Sala abierta en otra pestaña', replacedBody: 'Esta partida continúa en otra pestaña o dispositivo.',
   replacedContinue: 'Continuar aquí', replacedDismiss: 'Ir al multijugador',
+  movedTitle: 'Ahora juegas en otra sala', movedBody: (code: string) => `Desde otra pestaña has pasado a la sala ${code}. Puedes continuar aquí.`,
+  leftTitle: 'Has salido de la sala', leftBody: 'Has dejado tu sitio en esta sala desde otra pestaña.',
+  switchTitle: (code: string) => `¿Quieres salir de la sala ${code}?`,
+  switchBody: (code: string, next: string | null) => next
+    ? `Ya tienes un sitio en la sala ${code}. Si continúas, saldrás de esa sala y entrarás en la sala ${next}.`
+    : `Ya tienes un sitio en la sala ${code}. Si continúas, saldrás de esa sala y crearás una nueva.`,
+  switchConfirm: 'Salir y continuar', switchCancel: 'Cancelar',
   voltes: 'Rondas',   matchWon: 'Has ganado la partida', matchLost: 'Has perdido la partida', rematch: 'Revancha',
   draw: 'Empate', matchDraw: 'La partida ha terminado en empate.',
   rematchUnavailable: 'Se necesitan al menos dos jugadores en la sala para una revancha.',
@@ -157,6 +164,13 @@ const ca: typeof es = {
   selfReconnectFailed: 'No es pot connectar amb el servidor. Ho seguim intentant.',
   replacedTitle: 'Sala oberta en una altra pestanya', replacedBody: 'Aquesta partida continua en una altra pestanya o dispositiu.',
   replacedContinue: 'Continua aquí', replacedDismiss: 'Vés al multijugador',
+  movedTitle: 'Ara jugues en una altra sala', movedBody: (code) => `Des d'una altra pestanya has passat a la sala ${code}. Pots continuar-hi aquí.`,
+  leftTitle: 'Has sortit de la sala', leftBody: "Has deixat el teu lloc en aquesta sala des d'una altra pestanya.",
+  switchTitle: (code) => `Vols sortir de la sala ${code}?`,
+  switchBody: (code, next) => next
+    ? `Ja tens un lloc a la sala ${code}. Si continues, sortiràs d'aquella sala i entraràs a la sala ${next}.`
+    : `Ja tens un lloc a la sala ${code}. Si continues, sortiràs d'aquella sala i en crearàs una de nova.`,
+  switchConfirm: 'Surt i continua', switchCancel: 'Cancel·la',
   voltes: 'Rondes',   matchWon: 'Has guanyat la partida', matchLost: 'Has perdut la partida', rematch: 'Revenja',
   draw: 'Empat', matchDraw: 'La partida ha acabat en empat.',
   rematchUnavailable: 'Calen almenys dos jugadors a la sala per fer una revenja.',

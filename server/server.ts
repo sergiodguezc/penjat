@@ -189,7 +189,7 @@ io.on('connection', (socket) => {
       // Another tab or device that still held this player stops receiving the room and is told why.
       if (previousSocketId && previousSocketId !== socket.id) {
         io.in(previousSocketId).socketsLeave(room.code)
-        io.to(previousSocketId).emit('room:replaced')
+        io.to(previousSocketId).emit('room:replaced', { reason: 'takeover' })
       }
       socket.join(room.code)
       ack({ ok: true, data: room.viewFor(playerId) })
@@ -201,6 +201,21 @@ io.on('connection', (socket) => {
       ack({ ok: false, error: message })
       console.info('resume rejected', { roomCode, playerId, socketId: socket.id, reason: message })
     }
+  })
+
+  socket.on('room:abandon', (payload, ack) => {
+    const roomCode = typeof payload?.roomCode === 'string' ? payload.roomCode : ''
+    const playerId = typeof payload?.playerId === 'string' ? payload.playerId : ''
+    try {
+      const { room, previousSocketId, deleted } = games.abandon(roomCode, playerId, payload?.reconnectToken)
+      if (previousSocketId) {
+        io.in(previousSocketId).socketsLeave(room.code)
+        if (previousSocketId !== socket.id) io.to(previousSocketId).emit('room:replaced', { reason: 'left' })
+      }
+      ack({ ok: true, data: undefined })
+      if (!deleted) { io.to(room.code).emit('chat:typing', { playerId, playerName: room.player(playerId)?.name ?? '', isTyping: false }); broadcast(room.code) }
+      console.info('player abandoned seat', { roomCode: room.code, playerId, socketId: socket.id })
+    } catch (error) { ack({ ok: false, error: error instanceof Error ? error.message : 'resume-rejected' }) }
   })
 
   socket.on('room:continue-without', (payload, ack) => action(ack, () => {

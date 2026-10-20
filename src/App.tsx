@@ -141,7 +141,7 @@ function App() {
       socket, invitation: readInvitationCode, timeoutMs: REQUEST_TIMEOUT_MS,
       onStatus: (status) => {
         setRestoreStatus(status)
-        if (status === 'replaced') { setRoom(null); setMessages([]); setTypingPlayers({}) }
+        if (status === 'replaced' || status === 'left') { setRoom(null); setMessages([]); setTypingPlayers({}) }
       },
       onRestored: (session, view) => { setPlayerId(session.playerId); setNotice(''); setRoom(view) },
       onInvalid: (error) => { setPlayerId(''); setRoom(null); setMessages([]); setTypingPlayers({}); setNotice(error) },
@@ -161,6 +161,15 @@ function App() {
       if (restorer.current === roomRestorer) restorer.current = null
     }
   }, [])
+
+  // A tab that lost its seat reflects what other tabs store next (a new room to continue, or none).
+  const [, setStorageVersion] = useState(0)
+  useEffect(() => {
+    if (restoreStatus !== 'replaced' && restoreStatus !== 'left') return
+    const changed = () => setStorageVersion((version) => version + 1)
+    window.addEventListener('storage', changed)
+    return () => window.removeEventListener('storage', changed)
+  }, [restoreStatus])
 
   useEffect(() => {
     try { if (learningUnit) sessionStorage.setItem(LEARNING_UNIT_KEY, learningUnit); else sessionStorage.removeItem(LEARNING_UNIT_KEY) } catch { /* the list shows after a refresh */ }
@@ -252,6 +261,7 @@ function App() {
   // Learning is never guarded: every guess and finished word is already saved.
   // A room still being restored is guarded like a room: going elsewhere then gives it up.
   const restoringRoom = !room && (restoreStatus === 'restoring' || restoreStatus === 'failed')
+  const lostSeat = restoreStatus === 'replaced' || restoreStatus === 'left'
   const exitGuard = (): ExitKind | null => room
     ? room.roomStatus === 'waiting' ? 'room' : room.roomStatus === 'active' ? 'game' : null
     : restoringRoom ? 'room' : view === 'daily' && dailyGameActive ? 'game' : null
@@ -268,7 +278,7 @@ function App() {
   // Header links never drop a room or an unfinished game silently: leaving asks first, then goes to the chosen page.
   const navigate = (next: Route) => {
     if (room || restoringRoom) { requestConfirmedExit(() => leave(next), exitGuard()); return }
-    if (restoreStatus === 'replaced') setRestoreStatus('idle')
+    if (lostSeat) setRestoreStatus('idle')
     if (next === route) { goTo(next); return }
     requestConfirmedExit(() => goTo(next), exitGuard())
   }
@@ -293,7 +303,7 @@ function App() {
     window.history.replaceState({ penjatIndex: historyPosition.current }, '', `${next}${window.location.search}${window.location.hash}`)
     shownUrl.current = `${next}${window.location.search}`
     if (room || restoringRoom) leaveRoom()
-    if (restoreStatus === 'replaced') setRestoreStatus('idle')
+    if (lostSeat) setRestoreStatus('idle')
     setRoute(next)
     setView(routeDescriptions[next].mode)
     setInvitedRoomCode(next === '/multijugador/' ? readInvitationCode() : null)
@@ -313,13 +323,13 @@ function App() {
 
   const retryRestore = () => restorer.current?.retry()
   const connectionNotice = <SelfConnectionNotice language={interfaceLanguage} status={restoreStatus} onRetry={retryRestore} />
-  if (!room && restoreStatus !== 'idle') return <>{header()}<RoomRestoreNotice language={interfaceLanguage} status={restoreStatus} roomCode={loadRoomSession()?.roomCode ?? null}
+  if (!room && restoreStatus !== 'idle') return <>{header()}<RoomRestoreNotice language={interfaceLanguage} status={restoreStatus} roomCode={loadRoomSession()?.roomCode ?? null} lostToken={restorer.current?.lostToken() ?? null}
     onRetry={retryRestore} onLeave={() => leave()} onDismiss={() => { setRestoreStatus('idle'); goTo('/multijugador/') }} />{exitDialog}</>
   if (!room && view === 'learning') return <>{header(learningUnit ? { label: navigationCopy.backToUnits, onExit: () => setLearningUnit(null) } : undefined)}<LearningPage language={interfaceLanguage} unitId={learningUnit} onUnit={setLearningUnit} />{exitDialog}</>
   if (!room && view === 'daily') return <>{header()}<DailyChallengePage language={interfaceLanguage} onActiveGameChange={setDailyGameActive} onHome={returnHome} />{exitDialog}</>
-  if (!room && view === 'multiplayer') return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} invitedRoomCode={invitedRoomCode} onEnter={enterRoom} onLearn={startLearning} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="multiplayer" />{footer}{exitDialog}</>
+  if (!room && view === 'multiplayer') return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} invitedRoomCode={invitedRoomCode} onEnter={enterRoom} onResume={retryRestore} onLearn={startLearning} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="multiplayer" />{footer}{exitDialog}</>
   if (!room && view === 'help') return <>{header()}<HowToPlayPage language={interfaceLanguage} onNavigate={navigate} />{footer}{exitDialog}</>
-  if (!room) return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} onEnter={enterRoom} onLearn={startLearning} onDaily={startDaily} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="home" />{footer}{exitDialog}</>
+  if (!room) return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} onEnter={enterRoom} onResume={retryRestore} onLearn={startLearning} onDaily={startDaily} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="home" />{footer}{exitDialog}</>
   if (room.roomStatus === 'waiting') return <>{header({ label: navigationCopy.leaveRoom, onExit: () => leave() })}{connectionNotice}<LobbyPage state={room} interfaceLanguage={interfaceLanguage} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
   return <>{header({ label: room.roomStatus === 'active' ? navigationCopy.leaveMatch : navigationCopy.leaveRoom, onExit: () => requestConfirmedExit(() => leave(), room.roomStatus === 'active' ? 'game' : null) })}{connectionNotice}<GamePage onLeave={() => leave()} onExitToMenu={() => leave('/')} state={room} interfaceLanguage={interfaceLanguage} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
 }

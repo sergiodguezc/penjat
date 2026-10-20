@@ -173,9 +173,14 @@ try {
     await navigate(source, `/multijugador/?sala=${oldRoom.roomCode}`)
     await waitFor(source, "document.querySelector('.lobby-page') !== null")
     await checkResponsiveScope({ context:source, command, evaluate, page:'lobby', root:'.lobby-page', selectors:'.lobby-page, .lobby-page *' })
-    // Joining replaces credentials only after the new room accepts the player.
+    // Joining another room asks first (one seat per browser profile); nothing changes until the player confirms. The
+    // confirmed switch gives the old seat up, and the tab that held it says it was left, not that it is open elsewhere.
     await evaluate(copied, "document.querySelector('.invitation-form button.primary-action').click()")
+    await waitFor(copied, `document.querySelector('.exit-confirmation-dialog[open]')?.innerText.includes(${JSON.stringify(oldRoom.roomCode)})`)
+    assert.equal(JSON.parse(await evaluate(copied, "localStorage.getItem('hangman-room-session')")).roomCode, oldRoom.roomCode)
+    await evaluate(copied, "document.querySelector('.exit-confirmation-dialog .danger-action').click()")
     await waitFor(copied, "document.querySelector('.lobby-page') !== null")
+    await waitFor(source, "document.querySelector('.room-restore-card')?.innerText.includes('Ara jugues en una altra sala')")
     assert.equal(JSON.parse(await evaluate(copied, "localStorage.getItem('hangman-room-session')")).roomCode, invitedRoom.roomCode)
     await navigate(copied, '/multijugador/?sala=bad')
     await waitFor(copied, "document.querySelector('.invitation-invalid') !== null")

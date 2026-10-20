@@ -53,9 +53,39 @@ export function clearRoomSession(storage = browserStorage(), legacy = legacyBrow
   for (const store of [storage, legacy]) try { store?.removeItem(ROOM_SESSION_KEY) } catch { /* nothing stored */ }
 }
 
+/** What submitting the entry screen means for the session stored in this browser profile, read at that moment: joining
+ the stored room resumes that player (never a second seat), any other room or a new one first asks before giving it up. */
+export type EntryAction = { kind: 'create' } | { kind: 'join'; code: string }
+export function entryDecision(session: RoomSession | null, action: EntryAction): 'proceed' | 'resume' | 'confirm' {
+  if (!session) return 'proceed'
+  return action.kind === 'join' && action.code.trim().toUpperCase() === session.roomCode ? 'resume' : 'confirm'
+}
+
+export type AbandonSocket = { timeout(ms: number): { emit(event: 'room:abandon', session: RoomSession, ack: (error: Error | null, reply: Parameters<Ack>[0]) => void): unknown } }
+/** Gives up a stored seat after the player confirmed it. Resolves `left` once the server removed it (or no longer knows
+ it), clearing the credentials only if they are still these; `failed` keeps everything, so nothing is lost. */
+export function abandonRoomSession(socket: AbandonSocket, session: RoomSession, timeoutMs: number, storage = browserStorage(), legacy = legacyBrowserStorage()) {
+  return new Promise<'left' | 'failed'>((resolve) => {
+    socket.timeout(timeoutMs).emit('room:abandon', session, (error, reply) => {
+      if (error || (!reply.ok && !DEFINITIVE_RESUME_ERRORS.includes(reply.error))) { resolve('failed'); return }
+      if (loadRoomSession(storage, legacy)?.reconnectToken === session.reconnectToken) clearRoomSession(storage, legacy)
+      resolve('left')
+    })
+  })
+}
+
 /** `restoring`: a resume is pending or the connection is coming back. `failed`: a temporary failure; the credentials are
- kept and `retry` tries again. `replaced`: another tab or device resumed this player; this tab waits until asked. */
-export type RestoreStatus = 'idle' | 'restoring' | 'failed' | 'replaced'
+ kept and `retry` tries again. `replaced`: another tab or device resumed this player; `left`: another tab gave this seat
+ up for another room. Either way this tab waits until asked. */
+export type RestoreStatus = 'idle' | 'restoring' | 'failed' | 'replaced' | 'left'
+
+/** What a tab that lost its seat says, from why it lost it and what this profile has stored now: the same seat continues
+ elsewhere (`takeover`), the profile is in another seat (`moved`), or it has none (`left`). Only the first two can be
+ continued here. */
+export function lostSeatNotice(status: 'replaced' | 'left', lostToken: string | null, current: RoomSession | null) {
+  if (!current) return 'left' as const
+  return status === 'replaced' && current.reconnectToken === lostToken ? 'takeover' as const : 'moved' as const
+}
 
 type ResumeReply = Parameters<Ack<PlayerGameView>>[0]
 type Listener = (...args: never[]) => void
@@ -80,6 +110,8 @@ export type RoomRestorer = {
   forget(): void
   /** A room was just created or joined on this connection: earlier failures or a replaced tab no longer apply. */
   reset(): void
+  /** The credentials this tab held when another tab took the seat over or gave it up. */
+  lostToken(): string | null
   dispose(): void
 }
 
@@ -103,6 +135,10 @@ export function createRoomRestorer({ socket, storage = browserStorage, legacySto
   let resumedSocket: string | null = null
   // The token the player abandoned while its resume was still in flight; a late success is undone at once.
   let forgottenToken: string | null = null
+  // The session this tab holds or is restoring. Another tab may store a newer one (or take this one over): leaving here
+  // then must not clear credentials that are no longer this tab's.
+  let claimed: string | null = null, lost: string | null = null
+  const ownsStored = () => { const stored = loadRoomSession(storage(), legacyStorage()); return Boolean(stored && stored.reconnectToken === claimed) }
   const resumable = () => {
     const session = loadRoomSession(storage(), legacyStorage())
     return session && shouldResumeRoomSession(session.roomCode, invitation()) ? session : null
@@ -111,6 +147,7 @@ export function createRoomRestorer({ socket, storage = browserStorage, legacySto
     if (disposed || replaced) return
     const session = resumable()
     if (!session || (socket.connected && resumedSocket === socket.id)) { onStatus('idle'); return }
+    claimed = session.reconnectToken
     onStatus('restoring')
     if (!socket.connected) { if (!socket.active) socket.connect(); return }
     if (pendingSocket === socket.id) return
@@ -134,13 +171,17 @@ export function createRoomRestorer({ socket, storage = browserStorage, legacySto
     if (!replaced && resumable()) onStatus('restoring')
   }
   const onConnectError = () => { if (!replaced && resumable()) onStatus('failed') }
-  const onReplaced = () => { replaced = true; pendingSocket = null; resumedSocket = null; attempt++; onStatus('replaced') }
+  const onReplaced = (payload?: { reason?: string }) => {
+    replaced = true; lost = claimed; claimed = null; pendingSocket = null; resumedSocket = null; attempt++
+    onStatus(payload?.reason === 'left' ? 'left' : 'replaced')
+  }
   socket.on('connect', resume)
   socket.on('disconnect', onDisconnect)
   socket.on('connect_error', onConnectError)
   socket.on('room:replaced', onReplaced)
   return {
     resume,
+    lostToken: () => lost,
     retry() {
       replaced = false
       if (!resumable()) { onStatus('idle'); return }
@@ -148,10 +189,16 @@ export function createRoomRestorer({ socket, storage = browserStorage, legacySto
       if (stale || (!socket.connected && socket.active)) { stale = false; pendingSocket = null; attempt++; onStatus('restoring'); socket.disconnect(); socket.connect(); return }
       resume()
     },
-    reset() { attempt++; pendingSocket = null; resumedSocket = socket.id ?? null; replaced = false; stale = false; onStatus('idle') },
+    reset() {
+      attempt++; pendingSocket = null; resumedSocket = socket.id ?? null; replaced = false; stale = false
+      claimed = loadRoomSession(storage(), legacyStorage())?.reconnectToken ?? null; onStatus('idle')
+    },
     forget() {
-      if (pendingSocket) forgottenToken = loadRoomSession(storage(), legacyStorage())?.reconnectToken ?? null
-      attempt++; pendingSocket = null; resumedSocket = null; replaced = false; stale = false; clearRoomSession(storage(), legacyStorage()); onStatus('idle')
+      const mine = ownsStored()
+      if (pendingSocket && mine) forgottenToken = claimed
+      attempt++; pendingSocket = null; resumedSocket = null; replaced = false; stale = false; claimed = null
+      if (mine) clearRoomSession(storage(), legacyStorage())
+      onStatus('idle')
     },
     dispose() {
       disposed = true

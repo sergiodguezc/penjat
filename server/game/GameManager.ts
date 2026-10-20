@@ -84,6 +84,17 @@ export class GameManager {
     return room
   }
 
+  /** Explicit leave by credentials rather than by connection; returns the socket that held the seat, if any. */
+  abandon(code: string, playerId: string, token: string) {
+    const room = this.rooms.get(code.trim().toUpperCase())
+    if (!room || this.playerRooms.get(playerId) !== room.code) throw new Error('room-not-found')
+    const player = room.player(playerId)
+    if (!player || !player.active || player.reconnectToken !== token) throw new Error('resume-rejected')
+    const previousSocketId = player.socketId && this.socketPlayers.get(player.socketId) === playerId ? player.socketId : undefined
+    this.removePlayer(playerId, previousSocketId)
+    return { room, previousSocketId, deleted: this.rooms.get(room.code) !== room }
+  }
+
   /** The socket closed without leaving: the seat is kept; after the grace period the game stops waiting for it. */
   markReconnecting(socketId: string) {
     const identity = this.identityForSocket(socketId)

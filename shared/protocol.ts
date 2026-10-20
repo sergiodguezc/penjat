@@ -109,6 +109,9 @@ export interface ClientToServerEvents {
   'room:create': (payload: { name: string } & Partial<RoomSettings>, ack: Ack<RoomEntry>) => void
   'room:join': (payload: { name: string; code: string }, ack: Ack<RoomEntry>) => void
   'room:resume': (payload: RoomSession, ack: Ack<PlayerGameView>) => void
+  /** Gives up the seat these credentials prove, from a connection that does not hold it (the same browser profile is
+   about to create or join another room). The connection that held it, if any, receives `room:replaced` with reason `left`. */
+  'room:abandon': (payload: RoomSession, ack: Ack) => void
   /** Host only, in the lobby before the match starts; every member receives the new state. */
   'room:update-settings': (payload: Partial<RoomSettings>, ack: Ack) => void
   'room:start': (ack: Ack) => void
@@ -129,8 +132,9 @@ export interface ClientToServerEvents {
 export interface ServerToClientEvents {
   'room:state': (state: PlayerGameView) => void
   'room:error': (error: string) => void
-  /** This connection no longer represents its player: another tab or device resumed the same session. */
-  'room:replaced': () => void
+  /** This connection no longer represents its player: another tab or device resumed the same session (`takeover`), or
+   gave the seat up to create or join another room (`left`). */
+  'room:replaced': (payload: { reason: 'takeover' | 'left' }) => void
   'chat:message': (message: ChatMessage) => void
   'chat:history': (messages: ChatMessage[]) => void
   'chat:reaction-updated': (payload: { messageId: string; reactions: MessageReactions }) => void

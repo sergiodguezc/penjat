@@ -6,7 +6,7 @@ import net from 'node:net'
 import { io, type Socket } from 'socket.io-client'
 import type { PlayerGameView, RoomSession } from '../shared/protocol'
 import {
-  clearRoomSession, createRoomRestorer, loadRoomSession, ROOM_SESSION_KEY, saveRoomSession,
+  abandonRoomSession, clearRoomSession, createRoomRestorer, entryDecision, loadRoomSession, lostSeatNotice, ROOM_SESSION_KEY, saveRoomSession,
   type RestoreSocket, type RestoreStatus, type SessionStorage,
 } from '../src/multiplayer/roomSession'
 
@@ -280,6 +280,89 @@ for (const [label, mutate, error] of [
   guest.disconnect(); third.disconnect()
 }
 
+// 9. One player per browser profile from the entry screen. The decision uses the session stored when the player submits.
+{
+  const session = { roomCode: 'ABCDE', playerId: 'p', reconnectToken: 't' }
+  assert.equal(entryDecision(null, { kind: 'create' }), 'proceed')
+  assert.equal(entryDecision(null, { kind: 'join', code: 'ABCDE' }), 'proceed')
+  assert.equal(entryDecision(session, { kind: 'join', code: 'abcde' }), 'resume', 'the stored room resumes, never a second seat')
+  assert.equal(entryDecision(session, { kind: 'join', code: 'FGHJK' }), 'confirm')
+  assert.equal(entryDecision(session, { kind: 'create' }), 'confirm')
+  // Ownership changes while the entry screen is open: what is stored at submit time decides.
+  const storage = new MemoryStorage()
+  assert.equal(entryDecision(loadRoomSession(storage, null), { kind: 'create' }), 'proceed')
+  saveRoomSession(session, storage)
+  assert.equal(entryDecision(loadRoomSession(storage, null), { kind: 'create' }), 'confirm')
+  clearRoomSession(storage, null)
+  assert.equal(entryDecision(loadRoomSession(storage, null), { kind: 'join', code: 'ABCDE' }), 'proceed')
+  // A tab that lost its seat: "continue here" only while a saved session exists, and "open elsewhere" only for that seat.
+  const other = { roomCode: 'FGHJK', playerId: 'q', reconnectToken: 'u' }
+  assert.equal(lostSeatNotice('replaced', 't', session), 'takeover')
+  assert.equal(lostSeatNotice('replaced', 't', other), 'moved', 'the other tab took over, then moved to another room')
+  assert.equal(lostSeatNotice('replaced', 't', null), 'left', 'the other tab took over, then left')
+  assert.equal(lostSeatNotice('left', 't', other), 'moved')
+  assert.equal(lostSeatNotice('left', 't', null), 'left')
+  assert.equal(lostSeatNotice('left', 't', session), 'moved', 'a seat given up is never described as open elsewhere')
+}
+{
+  // The reported loophole: tab A holds the seat, tab B takes it over, A goes to the entry screen and joins the same room
+  // (with another name typed). A resumes the existing player through the takeover flow; no second seat, no rename.
+  const { host, guest, code, session } = await room()
+  const storage = new MemoryStorage(); saveRoomSession(session, storage)
+  guest.disconnect()
+  const a = tab(storage); a.socket.connect()
+  await until(() => a.restored.length === 1, 'tab A restored')
+  const b = tab(storage); b.socket.connect()
+  await until(() => b.restored.length === 1 && a.status() === 'replaced', 'tab B took over')
+  assert.equal(a.restorer.lostToken(), session.reconnectToken)
+  assert.equal(entryDecision(loadRoomSession(storage, null), { kind: 'join', code }), 'resume')
+  a.restorer.retry() // what HomePage's onResume does
+  await until(() => a.restored.length === 2 && b.status() === 'replaced', 'tab A resumed the same seat')
+  assert.equal(activePlayers(code), 2, 'no second seat')
+  assert.equal(games.rooms.get(code)!.player(session.playerId)!.name, 'Biel', 'the typed name does not rename the player')
+
+  // Stale cleanup from the replaced tab B (a late leave) neither clears A's credentials nor removes A's seat.
+  b.socket.emit('room:leave'); b.restorer.forget()
+  await sleep(150)
+  assert.deepEqual(loadRoomSession(storage, null), session, 'a replaced tab cannot clear the shared session')
+  assert.equal(games.rooms.get(code)!.player(session.playerId)!.socketId, a.socket.id, 'nor disconnect its owner')
+
+  // Creating elsewhere from tab B: cancelling keeps everything (nothing is sent); confirming gives the seat up by its
+  // credentials, A is told, and only then is the new room stored. A's stale cleanup cannot clear the new session.
+  assert.equal(entryDecision(loadRoomSession(storage, null), { kind: 'create' }), 'confirm')
+  assert.equal(activePlayers(code), 2)
+  assert.equal(await abandonRoomSession(b.socket as never, session, 1_000, storage, null), 'left')
+  assert.equal(loadRoomSession(storage, null), null)
+  await until(() => a.status() === 'left' && activePlayers(code) === 1, 'seat given up, owner told it was left')
+  assert.equal(lostSeatNotice('left', a.restorer.lostToken(), loadRoomSession(storage, null)), 'left', 'nothing to continue yet')
+  const created = await emit<Entry>(b.socket, 'room:create', { name: 'Biel' })
+  saveRoomSession(created.data.session, storage); b.restorer.reset()
+  assert.equal(lostSeatNotice('left', a.restorer.lostToken(), loadRoomSession(storage, null)), 'moved', 'the new room can be continued')
+  a.socket.emit('room:leave'); a.restorer.forget()
+  await sleep(150)
+  assert.deepEqual(loadRoomSession(storage, null), created.data.session, 'the old tab cannot clear the newer session')
+  assert.equal(activePlayers(created.data.session.roomCode), 1)
+  // "Continue here" in A now follows the profile's current seat rather than recreating the old one.
+  a.restorer.retry()
+  await until(() => a.restored.at(-1)?.code === created.data.session.roomCode && b.status() === 'replaced', 'A continues the current seat')
+  assert.equal(activePlayers(created.data.session.roomCode), 1)
+  for (const each of [a, b]) { each.restorer.dispose(); each.socket.disconnect() }
+  host.disconnect()
+}
+{
+  // Giving up a seat: forged credentials never remove the real player; an unreachable server keeps the credentials.
+  const { host, guest, code, session } = await room()
+  const storage = new MemoryStorage(); const forged = { ...session, reconnectToken: 'forged' }; saveRoomSession(forged, storage)
+  const stranger = client(); await connected(stranger)
+  assert.equal(await abandonRoomSession(stranger as never, forged, 1_000, storage, null), 'left', 'nothing to keep')
+  assert.equal(games.rooms.get(code)!.player(session.playerId)!.active, true, 'the real seat stays')
+  assert.equal(activePlayers(code), 2)
+  const offline = client(FLAKY); saveRoomSession(session, storage)
+  assert.equal(await abandonRoomSession(offline as never, session, 300, storage, null), 'failed')
+  assert.deepEqual(loadRoomSession(storage, null), session, 'a failure keeps the seat and credentials')
+  for (const each of [stranger, offline, guest, host]) each.disconnect()
+}
+
 httpServer.close()
-console.log('Reconnect checks passed: storage, refresh/reopen, transport drop, failure and retry, invalid sessions, leave, two tabs, invitations, continue-without permissions')
+console.log('Reconnect checks passed: storage, refresh/reopen, transport drop, failure and retry, invalid sessions, leave, two tabs, one seat per profile from the entry screen, invitations, continue-without permissions')
 process.exit(0)

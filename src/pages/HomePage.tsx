@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import type { Language } from '../../shared/game'
-import type { PlayerGameView, RoomPreview } from '../../shared/protocol'
+import type { Ack, PlayerGameView, RoomEntry, RoomPreview, RoomSession } from '../../shared/protocol'
+import { Modal } from '../components/Modal'
 import { HangmanDrawing } from '../components/HangmanDrawing'
 import { getLanguageConfig } from '../game/languages'
 import { errorMessage, multiplayerTranslations } from '../multiplayer/i18n'
 import { REQUEST_TIMEOUT_MS, socket, whenConnected } from '../multiplayer/socket'
-import { loadRoomSession, saveRoomSession } from '../multiplayer/roomSession'
+import { abandonRoomSession, entryDecision, loadRoomSession, saveRoomSession, type EntryAction } from '../multiplayer/roomSession'
 import { shouldResumeRoomSession } from '../multiplayer/invitations'
 import { DAILY_CHALLENGE_PUBLIC_PATH, getDailyChallenge } from '../daily/challenge'
 import { getHomeDailyStatus } from '../daily/homeSummary'
@@ -20,6 +21,8 @@ type Props = {
   invitedRoomCode?: string | null
   mode: 'home' | 'multiplayer'
   onEnter: (view: PlayerGameView, playerId: string) => void
+  /** Joining the room this browser profile already has a seat in: take that player back instead of joining again. */
+  onResume: () => void
   onLearn: () => void
   onDaily?: () => void
   onMultiplayer: () => void
@@ -44,7 +47,7 @@ function readHomeDaily() {
   }
 }
 
-export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomCode = null, mode, onEnter, onLearn, onDaily, onMultiplayer, onHelp }: Props) {
+export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomCode = null, mode, onEnter, onResume, onLearn, onDaily, onMultiplayer, onHelp }: Props) {
   const [panel, setPanel] = useState<'menu' | 'multiplayer'>(mode === 'multiplayer' ? 'multiplayer' : 'menu')
   // One name for both actions, pre-filled with the remembered one.
   const [name, setName] = useState(readStoredName)
@@ -55,6 +58,8 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  // Creating or joining another room while this profile holds a seat elsewhere waits for an explicit confirmation.
+  const [pendingSwitch, setPendingSwitch] = useState<{ action: EntryAction; session: RoomSession } | null>(null)
   const [invitation, setInvitation] = useState<RoomPreview | null>(null)
   const [invitationStatus, setInvitationStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [previewRetry, setPreviewRetry] = useState(0)
@@ -151,24 +156,44 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
     return false
   }
 
+  const entered = (playerName: string) => (timedOut: Error | null, response: Parameters<Ack<RoomEntry>>[0]) => {
+    if (timedOut) return connectionFailed()
+    setBusy(false)
+    if (!response.ok) return setError(errorMessage(response.error, t))
+    localStorage.setItem('hangman-name', playerName.trim()); saveRoomSession(response.data.session); onEnter(response.data.view, response.data.session.playerId)
+  }
+  const run = (action: EntryAction) => connect(() => action.kind === 'create'
+    ? socket.timeout(REQUEST_TIMEOUT_MS).emit('room:create', { name, gameLanguage }, entered(name))
+    : socket.timeout(REQUEST_TIMEOUT_MS).emit('room:join', { name, code: action.code }, entered(name)))
+  /** The stored session is read when the action is submitted: another tab may have taken it over, left or moved on. */
+  const submit = (action: EntryAction) => {
+    const session = loadRoomSession()
+    const decision = entryDecision(session, action)
+    if (decision === 'resume') { setError(''); onResume(); return }
+    if (decision === 'confirm' && session) { setPendingSwitch({ action, session }); return }
+    run(action)
+  }
+  const confirmSwitch = () => {
+    const pending = pendingSwitch
+    setPendingSwitch(null)
+    if (!pending) return
+    // The seat changed while the question was open: decide again for what is stored now.
+    if (loadRoomSession()?.reconnectToken !== pending.session.reconnectToken) { submit(pending.action); return }
+    connect(() => { void abandonRoomSession(socket, pending.session, REQUEST_TIMEOUT_MS).then((result) => result === 'left' ? run(pending.action) : connectionFailed()) })
+  }
+  const switchDialog = pendingSwitch && <Modal className="exit-confirmation-dialog" labelledBy="switch-room-title" describedBy="switch-room-copy" onCancel={() => setPendingSwitch(null)}>
+    <h2 id="switch-room-title">{t.switchTitle(pendingSwitch.session.roomCode)}</h2>
+    <p id="switch-room-copy">{t.switchBody(pendingSwitch.session.roomCode, pendingSwitch.action.kind === 'join' ? pendingSwitch.action.code : null)}</p>
+    <div className="exit-confirmation-actions">
+      <button type="button" className="secondary-action" data-modal-initial-focus onClick={() => setPendingSwitch(null)}>{t.switchCancel}</button>
+      <button type="button" className="primary-action danger-action" onClick={confirmSwitch}>{t.switchConfirm}</button>
+    </div>
+  </Modal>
+
   const create = (event: FormEvent) => {
     event.preventDefault()
     if (!requireName()) return
-    connect(() => socket.timeout(REQUEST_TIMEOUT_MS).emit('room:create', { name, gameLanguage }, (timedOut, response) => {
-      if (timedOut) return connectionFailed()
-      setBusy(false)
-      if (!response.ok) return setError(errorMessage(response.error, t))
-      localStorage.setItem('hangman-name', name.trim()); saveRoomSession(response.data.session); onEnter(response.data.view, response.data.session.playerId)
-    }))
-  }
-
-  const join = (playerName: string) => {
-    connect(() => socket.timeout(REQUEST_TIMEOUT_MS).emit('room:join', { name: playerName, code }, (timedOut, response) => {
-      if (timedOut) return connectionFailed()
-      setBusy(false)
-      if (!response.ok) return setError(errorMessage(response.error, t))
-      localStorage.setItem('hangman-name', playerName.trim()); saveRoomSession(response.data.session); onEnter(response.data.view, response.data.session.playerId)
-    }))
+    submit({ kind: 'create' })
   }
 
   if (panel === 'multiplayer') {
@@ -199,7 +224,7 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
               </dl>
             </section>
             <label>{t.name}<input value={name} maxLength={24} required placeholder={t.namePlaceholder} onChange={(e) => setName(e.target.value)} /></label>
-            <button type="button" className="primary-action" disabled={busy || !name.trim()} onClick={() => join(name)}>{t.joinInvitation}</button>
+            <button type="button" className="primary-action" disabled={busy || !name.trim()} onClick={() => submit({ kind: 'join', code })}>{t.joinInvitation}</button>
             {/* `error` is already translated by join (room errors) or connectionFailed; only the notice is still a code. */}
             {(error || notice) && <p className="form-error" role="alert">{error || errorMessage(notice!, t)}</p>}
             <div className="invitation-alternative">
@@ -208,6 +233,7 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
             </div>
           </form>}
         </section>
+        {switchDialog}
       </main>
     }
 
@@ -229,7 +255,7 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
           event.preventDefault()
           if (!requireName()) return
           if (code.length !== 5) { setError(t.codeIncomplete); codeRef.current?.focus(); return }
-          join(name)
+          submit({ kind: 'join', code })
         }}>
           <label htmlFor="entry-room-code">{t.roomCode}</label>
           <div className="entry-join-row">
@@ -240,6 +266,7 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
         </form> : <button type="button" className="secondary-action entry-join-toggle" onClick={openJoin}>{t.joinRoom}</button>}
         {(error || notice) && <p className="form-error" role="alert">{error || errorMessage(notice!, t)}</p>}
       </section>
+      {switchDialog}
     </main>
   }
 
