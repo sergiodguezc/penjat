@@ -251,55 +251,25 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
 .home-card input, .setup input, .word-form input { width: 100%; margin-top: var(--space-2); padding: .75em .875em; border: 2px solid var(--ink); border-radius: var(--radius-control); color: var(--ink); background: var(--surface); font-size: var(--text-control); line-height: var(--leading-ui); outline: none; }
 .home-card input:focus, .setup input:focus, .word-form input:focus { border-color: var(--ink); box-shadow: var(--shadow-ink-sm); }
 .home-card > small { display: block; margin-top: 18px; color: var(--muted); font-size: var(--text-meta); text-align: center; }
-/* Multiplayer setup: two self-contained choices, create (sea card, saffron action) and join (paper card, ink action),
-   each with its own name field. Settings are two compact controls; each card's button sits at its foot. */
-.setup { display: grid; gap: var(--space-6); }
-.setup-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); align-items: stretch; }
-.setup-panel { position: relative; min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-8); border: 2px solid var(--ink); border-radius: var(--radius-card); color: var(--ink); background: var(--surface); box-shadow: var(--shadow-ink); }
-.setup-panel--create { color: var(--paper); background: var(--mar); }
-.setup-icon { flex: none; width: 1.75rem; height: 1.75rem; }
-.setup-panel h2 { margin: 0; color: inherit; font: 800 var(--text-card-title)/1.05 var(--font-display); letter-spacing: -.02em; }
-.setup-hint { margin: calc(var(--space-3) * -1) 0 0; color: var(--text-muted); font-size: var(--text-body); line-height: var(--leading-ui); }
-.setup-panel--create .setup-hint { color: color-mix(in oklch, var(--paper) 86%, var(--mar)); }
-.setup-options { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
-.setup-panel--create label, .setup-panel--create .target-selector legend { color: var(--paper); }
-.setup-options .target-selector div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-/* On the sea card the segmented controls sit in a translucent deep-teal track with an ink outline: inactive
-   options are paper text on teal, the selected one a compact paper pill. They stay quieter than the saffron action. */
-.setup .setup-panel--create :is(.language-options, .target-selector div) { gap: 2px; padding: 3px; border: 2px solid var(--ink); border-radius: var(--radius-pill); background: color-mix(in oklch, var(--ink) 18%, var(--mar)); }
-.setup .setup-panel--create :is(.language-options, .target-selector) button { flex: 1; min-height: 2.25rem; padding: 6px 10px; border-radius: var(--radius-pill); color: var(--paper); background: transparent; font: var(--weight-semibold) var(--text-meta)/1.2 var(--font-ui); }
-.setup .setup-panel--create :is(.language-options, .target-selector) button:hover { background: color-mix(in oklch, var(--paper) 14%, transparent); }
-.setup .setup-panel--create :is(.language-options, .target-selector) button.active { color: var(--ink); background: var(--paper); font-weight: var(--weight-bold); }
-/* An ink ring would vanish on the sea card: saffron there. */
-:root .setup-panel--create :is(button, input):focus-visible { outline: 3px solid var(--safra); outline-offset: 2px; box-shadow: none; }
+/* Multiplayer entry: one compact card on the same warm surface as Penjat's other cards. A shared name, the red
+   "create" action, then joining as the quieter outlined path, which reveals the room code and its "enter" in place. */
+.home-page--multiplayer:not(.home-page--invitation) .page-head, .setup { width: min(100%, 34rem); }
+.setup { display: grid; gap: var(--space-4); padding: var(--space-8); border: 2px solid var(--ink); border-radius: var(--radius-card); color: var(--ink); background: var(--surface); box-shadow: var(--shadow-ink); }
+.entry-create, .entry-join { display: grid; gap: var(--space-4); min-width: 0; }
+.setup-hint { margin: calc(var(--space-2) * -1) 0 0; color: var(--text-muted); font-size: var(--text-meta); line-height: var(--leading-ui); text-align: center; }
+/* The secondary path sits on warm paper so it reads as a button, not as more panel; "Entra" keeps that weight. */
+.setup .secondary-action { background: var(--paper); }
+.setup .secondary-action:not(:disabled):hover { background: var(--paper-deep); }
+.entry-join { padding-top: var(--space-4); border-top: 1px solid var(--border); }
+.entry-join-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3); align-items: stretch; }
+.setup .entry-join-row input { margin-top: 0; text-align: center; }
+.entry-join-row .secondary-action { width: auto; padding-inline: 1.6em; }
+.setup button:disabled { cursor: progress; }
+:root .setup :is(button, input):focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; box-shadow: 0 0 0 2px var(--focus-gap); }
 .language-field { display: grid; gap: var(--space-2); }
-/* Fields and action; the action sits at the card's foot so both cards' buttons align on desktop. */
-.setup-body { flex: 1; display: grid; grid-template-rows: 1fr; transition: grid-template-rows 220ms ease, margin-top 220ms ease, visibility 0s; }
-.setup-body-inner { min-height: 0; display: flex; flex-direction: column; gap: var(--space-4); }
-.setup-body-inner > button { margin-top: auto; }
-.setup-panel--create .primary-action { color: var(--ink); background: var(--safra); }
-.setup-panel--create .primary-action:not(:disabled):hover { background: color-mix(in oklch, var(--safra) 82%, var(--paper)); }
-.setup-panel--join .secondary-action { color: var(--paper); background: var(--ink); }
-.setup-panel--join .secondary-action:not(:disabled):hover { background: color-mix(in oklch, var(--ink) 82%, var(--paper)); }
-.setup .form-error { margin: 0; }
-/* Tablets: the two settings stack inside each card; phones also stack the cards. */
-@media (max-width: 62.4375em) {
-  .setup-options { grid-template-columns: minmax(0, 1fr); }
-  .setup-panel { padding: var(--space-6); }
-}
+.setup .form-error { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-inner); color: var(--error); background: var(--error-surface); }
 @media (max-width: 37.4375em) {
-  .setup { gap: var(--space-5); }
-  /* Accordion: the title row is the toggle (and covers the whole collapsed card); the body animates its height and
-     leaves the tab order (inert) while collapsed. Reduced motion makes it instant. */
-  .setup-toggle { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: 0; border: 0; color: inherit; background: none; font: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; }
-  .setup-toggle > span { flex: 1; min-width: 0; }
-  .setup-toggle-chevron { flex: none; width: 2rem; height: 2rem; padding: 6px; border: 2px solid currentColor; border-radius: 50%; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 220ms ease; }
-  .setup-panel.is-open .setup-toggle-chevron { transform: rotate(180deg); }
-  .setup-panel.is-collapsible:not(.is-open) .setup-toggle::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius-card); }
-  .setup-panel.is-collapsible .setup-body-inner { overflow: hidden; margin: -6px; padding: 6px; }
-  .setup-panel.is-collapsible:not(.is-open) .setup-body { grid-template-rows: 0fr; margin-top: calc(var(--space-4) * -1); visibility: hidden; transition: grid-template-rows 220ms ease, margin-top 220ms ease, visibility 0s 220ms; }
-  .setup-actions { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
-  .setup-panel { padding: var(--space-5) var(--space-4); }
+  .setup { padding: var(--space-5) var(--space-4); }
 }
 .invitation-card { text-align: center; }
 .invitation-form { display: grid; gap: 18px; }
@@ -308,7 +278,7 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
 .invitation-invalid { display: grid; gap: 16px; }
 .invitation-invalid .form-error { margin: 0; }
 .invitation-error-actions { display: grid; gap: 10px; }
-.room-restore-card { display: grid; gap: 16px; }
+.room-restore-card { display: grid; gap: 16px; margin-inline: auto; }
 .room-restore-card h1 { margin: 0; color: var(--green-dark); font: 700 var(--text-page-title)/var(--leading-tight) var(--font-display); overflow-wrap: anywhere; }
 .room-restore-card p { margin: 0; color: var(--muted); line-height: var(--leading-body); }
 .connection-notice .text-button { margin-inline-start: var(--space-2); padding-block: 0; color: inherit; }
@@ -594,6 +564,28 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
 .waiting-pulse i { width: 10px; height: 10px; border-radius: 50%; background: var(--safra); box-shadow: 0 0 0 6px oklch(0.83 0.15 82 / 25%); animation: pulse 1.5s infinite; border: 2px solid var(--ink); }
 @keyframes pulse { 50% { box-shadow: 0 0 0 10px oklch(0.83 0.15 82 / 5%); } }
 .lobby-start { margin-bottom: var(--space-5); }
+/* Match rules: a heading row (with the host's "Configura") over the current settings as two pills. */
+.lobby-rules { margin-top: var(--space-5); }
+.lobby-rules-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-3); }
+.lobby-rules h2 { margin: 0; color: var(--green-dark); font-size: var(--text-body); font-weight: var(--weight-semibold); }
+.lobby-rules-configure { width: auto; min-height: 2.5rem; padding: .35em 1.1em; font-size: var(--text-meta); }
+.lobby-rules-pills { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.lobby-rules-pills li { padding: 3px 12px; border: 1.5px solid var(--ink); border-radius: var(--radius-pill); color: var(--ink); background: var(--surface); font-size: var(--text-meta); font-weight: var(--weight-semibold); line-height: var(--leading-ui); }
+/* Settings dialog: the exit dialog's frame with the existing selectors; changes apply as they are confirmed. */
+.lobby-settings-dialog { width: min(100%, 27rem); padding: var(--space-6); border: 2px solid var(--ink); border-radius: var(--radius-dialog); background: var(--surface); box-shadow: var(--shadow-ink); text-align: left; }
+.lobby-settings-dialog h2 { margin: 0 0 var(--space-2); color: var(--ink); font: 800 var(--text-page-title)/var(--leading-tight) var(--font-display); }
+.lobby-settings-dialog > p { margin: 0 0 var(--space-5); color: var(--muted); font-size: var(--text-body); line-height: var(--leading-body); }
+.lobby-rules-controls { display: grid; gap: var(--space-4); min-width: 0; margin: 0; padding: 0; border: 0; }
+.lobby-rules-controls:disabled { opacity: .7; }
+.lobby-rules-controls .language-field > span { color: var(--ink); font-size: var(--text-meta); font-weight: var(--weight-semibold); }
+.lobby-rules-controls .language-option-wrap { display: flex; flex: 1; }
+.lobby-rules-controls .language-option-wrap button { width: 100%; }
+.lobby-rules-controls .target-selector div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.lobby-settings-dialog .form-error { margin: var(--space-3) 0 0; }
+@media (max-width: 37.4375em) {
+  .lobby-settings-dialog { padding: 22px 18px; }
+  .lobby-settings-dialog .exit-confirmation-actions button { width: 100%; }
+}
 .lobby-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding: var(--space-3) 0; border-block: 1px solid var(--border); color: var(--muted); font-size: var(--text-meta); font-variant-numeric: tabular-nums; }
 .player-list { display: grid; gap: var(--space-2); margin: var(--space-5) 0 var(--space-6); padding: 0; list-style: none; text-align: left; }
 .player-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: var(--text-name); font-weight: var(--weight-semibold); line-height: var(--leading-ui); overflow-wrap: anywhere; }

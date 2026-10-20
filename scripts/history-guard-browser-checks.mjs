@@ -87,7 +87,7 @@ export async function checkHistoryGuard({ context, command, evaluate, waitFor, n
   await waitFor(context, dialogOpen)
   await confirm()
   await waitFor(context, "document.querySelector('.setup-name input')?.value === 'Historial'")
-  await evaluate(context, "document.querySelector('.setup-panel--create .primary-action').click()")
+  await evaluate(context, "document.querySelector('.entry-create .primary-action').click()")
   await waitFor(context, "document.querySelector('.lobby-page') !== null")
   const room = await evaluate(context, "localStorage.getItem('hangman-room-session')")
   assert.ok(room)

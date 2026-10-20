@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import type { Language } from '../../shared/game'
-import { SUPPORTED_VOLTES, type PlayerGameView, type RoomPreview, type Voltes } from '../../shared/protocol'
+import type { PlayerGameView, RoomPreview } from '../../shared/protocol'
 import { HangmanDrawing } from '../components/HangmanDrawing'
-import { LanguageSelector } from '../components/LanguageSelector'
 import { getLanguageConfig } from '../game/languages'
 import { errorMessage, multiplayerTranslations } from '../multiplayer/i18n'
 import { REQUEST_TIMEOUT_MS, socket, whenConnected } from '../multiplayer/socket'
@@ -20,7 +19,6 @@ type Props = {
   notice?: string
   invitedRoomCode?: string | null
   mode: 'home' | 'multiplayer'
-  onGameLanguage: (language: Language) => void
   onEnter: (view: PlayerGameView, playerId: string) => void
   onLearn: () => void
   onDaily?: () => void
@@ -46,20 +44,17 @@ function readHomeDaily() {
   }
 }
 
-export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomCode = null, mode, onGameLanguage, onEnter, onLearn, onDaily, onMultiplayer, onHelp }: Props) {
+export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomCode = null, mode, onEnter, onLearn, onDaily, onMultiplayer, onHelp }: Props) {
   const [panel, setPanel] = useState<'menu' | 'multiplayer'>(mode === 'multiplayer' ? 'multiplayer' : 'menu')
+  // One name for both actions, pre-filled with the remembered one.
   const [name, setName] = useState(readStoredName)
-  // The join card has its own name field (pre-filled with the same remembered name, edited independently).
-  const [joinName, setJoinName] = useState(readStoredName)
-  const compactSetup = useCompactSetup()
-  // Phones: an accordion of the two choices, both collapsed at first; opening one closes the other.
-  const [setupOpen, setSetupOpen] = useState<'create' | 'join' | null>(null)
-  const toggleSetup = (target: 'create' | 'join') => setSetupOpen((current) => current === target ? null : target)
-  const setupClass = (kind: 'create' | 'join') => `setup-panel setup-panel--${kind}${compactSetup ? ' is-collapsible' : ''}${setupOpen === kind ? ' is-open' : ''}`
+  // "Uneix-te a una sala" reveals the code field in place; the name is kept and focus moves to the code.
+  const [joinOpen, setJoinOpen] = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null)
+  const codeRef = useRef<HTMLInputElement>(null)
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [voltes, setVoltes] = useState<Voltes>(3)
   const [invitation, setInvitation] = useState<RoomPreview | null>(null)
   const [invitationStatus, setInvitationStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [previewRetry, setPreviewRetry] = useState(0)
@@ -147,9 +142,19 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
     return () => { cancelled = true; controller.abort() }
   }, [invitedRoomCode, mode, previewRetry])
 
+  const openJoin = () => { setJoinOpen(true); setError('') }
+  useEffect(() => { if (joinOpen) codeRef.current?.focus() }, [joinOpen])
+  /** Both actions need a name; the field explains it rather than a disabled button. */
+  const requireName = () => {
+    if (name.trim()) return true
+    setError(t.needName); nameRef.current?.focus()
+    return false
+  }
+
   const create = (event: FormEvent) => {
     event.preventDefault()
-    connect(() => socket.timeout(REQUEST_TIMEOUT_MS).emit('room:create', { name, gameLanguage, voltes }, (timedOut, response) => {
+    if (!requireName()) return
+    connect(() => socket.timeout(REQUEST_TIMEOUT_MS).emit('room:create', { name, gameLanguage }, (timedOut, response) => {
       if (timedOut) return connectionFailed()
       setBusy(false)
       if (!response.ok) return setError(errorMessage(response.error, t))
@@ -168,7 +173,7 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
 
   if (panel === 'multiplayer') {
     if (invitedRoomCode !== null) {
-      return <main className="home-page home-page--multiplayer">
+      return <main className="home-page home-page--multiplayer home-page--invitation">
         <section className="home-card home-card--join invitation-card">
           <div className="home-intro home-intro--compact">
             <p className="page-eyebrow page-eyebrow--mar">{t.multiplayerMode}</p>
@@ -211,38 +216,28 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
         <p className="page-eyebrow page-eyebrow--mar">{t.multiplayerMode}</p>
         <h1>{t.setupTitle} <em>{t.setupAccent}</em></h1>
       </header>
-      {/* Two self-contained choices; each submits only its own name (both start from the remembered one). On phones
-          they are an accordion: both start collapsed, opening one closes the other, values survive switching. */}
-      <section className="setup">
-        <div className="setup-actions">
-          <form className={setupClass('create')} aria-labelledby="setup-create-title" onSubmit={create}>
-            <SetupHeading kind="create" compact={compactSetup} open={setupOpen === 'create'} onToggle={() => toggleSetup('create')}>{t.createTitle}</SetupHeading>
-            <p className="setup-hint">{t.createHint}</p>
-            <div className="setup-body" id="setup-create-body" inert={compactSetup && setupOpen !== 'create'}><div className="setup-body-inner">
-              <label className="setup-name">{t.name}<input value={name} maxLength={24} required autoComplete="nickname" onChange={(e) => setName(e.target.value)} /></label>
-              <div className="setup-options">
-                <label className="language-field">
-                  <span>{t.gameLanguage}</span>
-                  <LanguageSelector language={gameLanguage} label={t.gameLanguage} onChange={onGameLanguage} />
-                </label>
-                <fieldset className="target-selector"><legend>{t.voltes}</legend><div>
-                  {SUPPORTED_VOLTES.map((value) => <button type="button" key={value} className={voltes === value ? 'active' : ''} onClick={() => setVoltes(value)}>{value}</button>)}
-                </div></fieldset>
-              </div>
-              <button className="primary-action" disabled={busy}>{t.create}</button>
-            </div></div>
-          </form>
-          <form className={setupClass('join')} aria-labelledby="setup-join-title" onSubmit={(event) => { event.preventDefault(); join(joinName) }}>
-            <SetupHeading kind="join" compact={compactSetup} open={setupOpen === 'join'} onToggle={() => toggleSetup('join')}>{t.joinTitle}</SetupHeading>
-            <p className="setup-hint">{t.joinHint}</p>
-            <div className="setup-body" id="setup-join-body" inert={compactSetup && setupOpen !== 'join'}><div className="setup-body-inner">
-              <label className="setup-name setup-name--join">{t.name}<input value={joinName} maxLength={24} required autoComplete="nickname" onChange={(e) => setJoinName(e.target.value)} /></label>
-              <label>{t.roomCode}<input className="room-code-input" value={code} maxLength={5} placeholder={t.codePlaceholder} autoCapitalize="characters"
-                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z2-9]/g, ''))} /></label>
-              <button className="secondary-action" disabled={busy || !joinName.trim() || code.length !== 5}>{t.join}</button>
-            </div></div>
-          </form>
-        </div>
+      {/* One panel: a shared name, then Create; joining is the secondary path and reveals the code in place. Two
+          sibling forms, so Enter in the name creates and Enter in the code joins. */}
+      <section className="setup" aria-label={t.multiplayerMode}>
+        <form className="entry-create" id="entry-create" noValidate onSubmit={create}>
+          <label className="setup-name">{t.name}<input ref={nameRef} value={name} maxLength={24} required autoComplete="nickname"
+            onChange={(e) => { setName(e.target.value); if (error === t.needName) setError('') }} /></label>
+          <button className="primary-action" disabled={busy}>{t.createRoom}</button>
+          <p className="setup-hint">{t.createHint}</p>
+        </form>
+        {joinOpen ? <form className="entry-join" id="entry-join" noValidate onSubmit={(event) => {
+          event.preventDefault()
+          if (!requireName()) return
+          if (code.length !== 5) { setError(t.codeIncomplete); codeRef.current?.focus(); return }
+          join(name)
+        }}>
+          <label htmlFor="entry-room-code">{t.roomCode}</label>
+          <div className="entry-join-row">
+            <input id="entry-room-code" ref={codeRef} className="room-code-input" value={code} maxLength={5} placeholder={t.codePlaceholder} autoCapitalize="characters" autoComplete="off"
+              onChange={(e) => { setCode(e.target.value.toUpperCase().replace(/[^A-Z2-9]/g, '')); if (error === t.codeIncomplete) setError('') }} />
+            <button className="secondary-action" disabled={busy}>{t.enterRoom}</button>
+          </div>
+        </form> : <button type="button" className="secondary-action entry-join-toggle" onClick={openJoin}>{t.joinRoom}</button>}
         {(error || notice) && <p className="form-error" role="alert">{error || errorMessage(notice!, t)}</p>}
       </section>
     </main>
@@ -404,41 +399,8 @@ function WordBand({ pauseLabel, playLabel }: { pauseLabel: string; playLabel: st
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
 
-// Same breakpoint as the phone layout in App.css (37.4375em), so enlarged text also gets the accordion.
-const COMPACT_SETUP_QUERY = '(max-width: 37.4375em)'
-
-function useCompactSetup() {
-  const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.matchMedia(COMPACT_SETUP_QUERY).matches)
-  useEffect(() => {
-    const query = window.matchMedia(COMPACT_SETUP_QUERY)
-    const update = () => setCompact(query.matches)
-    update()
-    query.addEventListener('change', update)
-    return () => query.removeEventListener('change', update)
-  }, [])
-  return compact
-}
-
-/** Card title. On phones it is the accordion's toggle: a real button (never submits the form) that also covers the whole
- collapsed card; on wider screens a plain heading. */
-function SetupHeading({ kind, compact, open, onToggle, children }: { kind: 'create' | 'join'; compact: boolean; open: boolean; onToggle: () => void; children: ReactNode }) {
-  if (!compact) return <><SetupIcon kind={kind} /><h2 id={`setup-${kind}-title`}>{children}</h2></>
-  return <h2 id={`setup-${kind}-title`}><button type="button" className="setup-toggle" aria-expanded={open} aria-controls={`setup-${kind}-body`}
-    // Focus the toggle itself (Safari does not on tap), so focus never stays in a panel that just collapsed.
-    onClick={(event) => { event.currentTarget.focus(); onToggle() }}>
-    <SetupIcon kind={kind} /><span>{children}</span>
-    <svg className="setup-toggle-chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m4 6 4 4 4-4" /></svg>
-  </button></h2>
-}
-
 function readStoredName() {
   try { return localStorage.getItem('hangman-name') ?? '' } catch { return '' }
-}
-
-function SetupIcon({ kind }: { kind: 'create' | 'join' }) {
-  return <svg className="setup-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-    {kind === 'create' ? <path d="M12 4v16 M4 12h16" /> : <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4 M3 12h11 M10 8l4 4-4 4" />}
-  </svg>
 }
 
 function ModeCard({ tone, href, onClick, title, body, action, art }: { tone: 'mar' | 'safra' | 'oliva' | 'paper'; href: string; onClick: ReturnType<typeof route>; title: string; body: string; action: string; art: ReactNode }) {

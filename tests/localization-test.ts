@@ -85,7 +85,7 @@ try {
       attempt = JSON.stringify({ challengeId: challenge.id, guesses })
       const html = renderToStaticMarkup(React.createElement(HomePage, {
         interfaceLanguage: language, gameLanguage: 'ca', mode: 'home',
-        onGameLanguage() {}, onEnter() {}, onLearn() {}, onDaily() {}, onMultiplayer() {}, onHelp() {},
+        onEnter() {}, onLearn() {}, onDaily() {}, onMultiplayer() {}, onHelp() {},
       }))
       assert.equal((html.match(/<h1>/g) ?? []).length, 1)
       // Phase 3B styles one accent word inside the heading; its text (the SEO headline) is unchanged.
@@ -114,25 +114,26 @@ try {
     assert.equal(d.wonWith(1), language === 'ca' ? 'Encertada amb 1 error' : 'Acertada con 1 error')
     assert.equal(d.wonWith(2), language === 'ca' ? 'Encertada amb 2 errors' : 'Acertada con 2 errores')
   }
-  // Multiplayer setup: two self-contained forms, each with its own name field first (create: name, then settings; join:
-  // name, then code). Without a window (static render, as on desktop first paint) no accordion toggles render. No step markers, page subtitle, disclosures or explanatory hints beyond one line per card.
+  // Multiplayer entry: one panel with one shared name, the Create action and its one-line hint, then "join" as the
+  // secondary action; the code field appears only once join is opened. No settings, accordion, step markers or subtitle.
   for (const language of ['ca', 'es'] as const) {
     const t = multiplayerTranslations[language]
     const html = renderToStaticMarkup(React.createElement(HomePage, {
       interfaceLanguage: language, gameLanguage: 'ca', mode: 'multiplayer',
-      onGameLanguage() {}, onEnter() {}, onLearn() {}, onMultiplayer() {}, onHelp() {},
+      onEnter() {}, onLearn() {}, onMultiplayer() {}, onHelp() {},
     }))
-    const setup = html.match(/<section class="setup">.*<\/section>/)![0]
-    const [create, join] = setup.split('<form class="setup-panel setup-panel--join"')
-    assert.ok(create.includes('<form class="setup-panel setup-panel--create" aria-labelledby="setup-create-title">'))
-    assert.ok(create.indexOf(`<label class="setup-name">${t.name}<input`) < create.indexOf('setup-options'), 'create: name, then settings')
-    assert.ok(join.indexOf(`<label class="setup-name setup-name--join">${t.name}<input`) < join.indexOf('room-code-input'), 'join: name, then code')
-    assert.ok(setup.includes(`<legend>${t.voltes}</legend>`) && t.voltes === (language === 'ca' ? 'Rondes' : 'Rondas'))
-    assert.equal((setup.match(/autoComplete="nickname"|autocomplete="nickname"/g) ?? []).length, 2, 'one name field per card')
-    assert.ok(join.startsWith(' aria-labelledby="setup-join-title">'))
-    assert.ok(setup.includes(`<h2 id="setup-create-title">${t.createTitle}</h2>`) && setup.includes(`<h2 id="setup-join-title">${t.joinTitle}</h2>`))
-    assert.ok(setup.includes(t.createHint) && setup.includes(t.joinHint))
-    assert.ok(!html.includes(t.subtitle) && !setup.includes('setup-toggle') && !setup.includes(' hidden') && !setup.includes('setup-step'))
+    const setup = html.match(/<section class="setup"[^>]*>.*<\/section>/)![0]
+    assert.ok(setup.startsWith(`<section class="setup" aria-label="${t.multiplayerMode}">`))
+    assert.equal((setup.match(/<input/g) ?? []).length, 1, 'one shared name field')
+    assert.ok(setup.indexOf(`<label class="setup-name">${t.name}<input`) < setup.indexOf(`>${t.createRoom}</button>`), 'name, then Create')
+    assert.ok(setup.indexOf(`>${t.createRoom}</button>`) < setup.indexOf(t.createHint) && setup.indexOf(t.createHint) < setup.indexOf(`>${t.joinRoom}</button>`), 'Create, hint, then join')
+    assert.ok(setup.includes(`<button type="button" class="secondary-action entry-join-toggle">${t.joinRoom}</button>`))
+    assert.ok(!setup.includes('room-code-input') && !setup.includes(t.enterRoom), 'the code appears only after opening join')
+    assert.ok(!setup.includes('target-selector') && !setup.includes('language-selector') && !setup.includes(`<legend>${t.voltes}</legend>`), 'no match settings (they live in the lobby)')
+    assert.ok(!html.includes(t.subtitle) && !setup.includes('setup-toggle') && !setup.includes('setup-panel') && !setup.includes(' hidden') && !setup.includes('setup-step'))
+    assert.equal(t.createRoom, language === 'ca' ? 'Crea una sala' : 'Crear una sala')
+    assert.equal(t.joinRoom, language === 'ca' ? 'Uneix-te a una sala' : 'Unirse a una sala')
+    assert.equal(t.enterRoom, language === 'ca' ? 'Entra' : 'Entrar')
   }
 } finally {
   if (restoreStorage) Object.defineProperty(globalThis, 'localStorage', restoreStorage)

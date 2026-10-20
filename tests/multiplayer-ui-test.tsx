@@ -12,6 +12,7 @@ import { PlayerRoundStatusNotice } from '../src/components/PlayerRoundStatusNoti
 import { RoundResults } from '../src/components/RoundResults'
 import { Scoreboard } from '../src/components/Scoreboard'
 import { AbsenceNotice } from '../src/components/AbsenceNotice'
+import { LobbyPage } from '../src/pages/LobbyPage'
 import { RoomChat } from '../src/components/RoomChat'
 import { liveRanking } from '../src/multiplayer/liveRanking'
 import { FinalStandings } from '../src/components/MatchResults'
@@ -130,6 +131,26 @@ for (const language of ['ca', 'es'] as const) {
   const es = renderToStaticMarkup(<AbsenceNotice state={base.viewFor('g')} t={multiplayerTranslations.es} language="es" />)
   assert.ok(es.includes('Host ha perdido la conexión. Tiene 2 minutos para volver.') && es.includes('Continuar sin Host'))
   assert.equal(renderToStaticMarkup(<AbsenceNotice state={base.viewFor('x')} t={multiplayerTranslations.ca} language="ca" onlyWhenBlocking />), '')
+}
+
+// Lobby rules: a compact summary (two pills) for everyone; only the host gets "Configura", which opens the dialog.
+{
+  const lobby = new GameRoom('LOBBY', 'es', 1, () => 0)
+  lobby.addPlayer('h', 's-h', 't-h', 'Host'); lobby.addPlayer('g', 's-g', 't-g', 'Guest')
+  for (const language of ['ca', 'es'] as const) {
+    const t = multiplayerTranslations[language]
+    const render = (id: string) => renderToStaticMarkup(<LobbyPage state={lobby.viewFor(id)} interfaceLanguage={language} messages={[]} playerId={id} typingPlayers={[]} />)
+    const host = render('h'), guest = render('g')
+    const pills = `<ul class="lobby-rules-pills" aria-live="polite"><li>${t.languagePill('es')}</li><li>${t.roundsPill(1)}</li></ul>`
+    assert.ok(host.includes(pills) && guest.includes(pills), 'same live summary for everyone')
+    assert.ok(host.includes(`<h2 id="lobby-rules-title">${t.invitationRules}</h2><button type="button" class="secondary-action lobby-rules-configure" aria-haspopup="dialog">${t.configure}</button>`))
+    assert.ok(!guest.includes('lobby-rules-configure') && !guest.includes(t.startMatch))
+    assert.ok(!host.includes('target-selector') && !host.includes('lobby-settings-dialog'), 'controls only inside the dialog, closed at first')
+    assert.ok(host.includes(t.startMatch) && guest.includes(t.waitingForHost('Host')))
+    assert.ok(!host.includes(`${t.voltes}: `), 'rules are not repeated in the meta line')
+    assert.equal(t.roundsPill(3), language === 'ca' ? '3 rondes' : '3 rondas')
+    assert.equal(t.languagePill('ca'), language === 'ca' ? 'En català' : 'En catalán')
+  }
 }
 
 const catalanScoreboard = renderToStaticMarkup(<Scoreboard players={scoreboardPlayers} setterId="C" currentId="B" t={multiplayerTranslations.ca} />)

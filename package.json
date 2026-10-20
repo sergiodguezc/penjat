@@ -23,6 +23,7 @@
     "test:absence": "node scripts/absence-test.mjs",
     "test:connection": "tsx --tsconfig tsconfig.app.json tests/connection-test.ts",
     "test:reconnect": "tsx --tsconfig tsconfig.app.json tests/reconnect-test.ts",
+    "test:lobby-settings": "tsx --tsconfig tsconfig.app.json tests/lobby-settings-test.ts",
     "test:multiplayer-ui": "tsx --tsconfig tsconfig.app.json tests/multiplayer-ui-test.tsx",
     "test:match-results": "tsx --tsconfig tsconfig.app.json tests/match-results-test.tsx",
     "test:vocab": "python3 -m unittest discover -s tests -p 'test_vocab_pipeline.py'",

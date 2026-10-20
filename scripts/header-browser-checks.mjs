@@ -85,8 +85,7 @@ export async function checkSiteHeader({ context, command, evaluate, waitFor, nav
   await navigate(context, '/multijugador')
   await waitFor(context, "document.querySelector('.setup-name input')?.value === 'Capçalera'")
   // Phones show the two choices as an accordion: open "create", then create.
-  await evaluate(context, "document.querySelector('.setup-panel--create .setup-toggle')?.click()")
-  await evaluate(context, "document.querySelector('.setup-panel--create .primary-action').click()")
+  await evaluate(context, "document.querySelector('.entry-create .primary-action').click()")
   await waitFor(context, "document.querySelector('.lobby-page') !== null")
   const room = await evaluate(context, "localStorage.getItem('hangman-room-session')")
   assert.ok(room)

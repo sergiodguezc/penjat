@@ -50,7 +50,7 @@ export class GameRoom {
   reconnectedPlayerName?: string
   disconnectedPlayerName?: string
 
-  constructor(readonly code: string, readonly language: Language, readonly voltes: Voltes, private readonly random = Math.random) {}
+  constructor(readonly code: string, public language: Language, public voltes: Voltes, private readonly random = Math.random) {}
 
   /** Seated members, including players who are away; only an explicit leave gives up the seat. */
   get activePlayers() { return this.players.filter((player) => player.active) }
@@ -68,6 +68,15 @@ export class GameRoom {
   }
 
   player(id: string) { return this.players.find((player) => player.id === id) }
+
+  /** Only the current, connected host, and only in the lobby: a match always runs with the settings it started with. */
+  updateSettings(playerId: string, settings: { language?: Language; voltes?: Voltes }) {
+    if (this.roomStatus !== 'waiting') throw new Error('match-started')
+    if (playerId !== this.hostId) throw new Error('not-host')
+    this.requireConnected(playerId)
+    if (settings.language) this.language = settings.language
+    if (settings.voltes) this.voltes = settings.voltes
+  }
 
   start(playerId: string) {
     if (this.roomStatus !== 'waiting') throw new Error('cannot-start')

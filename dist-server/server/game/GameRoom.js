@@ -42,6 +42,18 @@ export class GameRoom {
             this.hostId = id;
     }
     player(id) { return this.players.find((player) => player.id === id); }
+    /** Only the current, connected host, and only in the lobby: a match always runs with the settings it started with. */
+    updateSettings(playerId, settings) {
+        if (this.roomStatus !== 'waiting')
+            throw new Error('match-started');
+        if (playerId !== this.hostId)
+            throw new Error('not-host');
+        this.requireConnected(playerId);
+        if (settings.language)
+            this.language = settings.language;
+        if (settings.voltes)
+            this.voltes = settings.voltes;
+    }
     start(playerId) {
         if (this.roomStatus !== 'waiting')
             throw new Error('cannot-start');

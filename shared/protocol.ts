@@ -3,6 +3,9 @@ import type { Language } from './game.js'
 export const MAX_ROOM_PLAYERS = 10
 export const SUPPORTED_VOLTES = [1, 3, 5] as const
 export type Voltes = typeof SUPPORTED_VOLTES[number]
+/** Match settings a new room starts with; the host changes them in the lobby before starting. */
+export const DEFAULT_VOLTES: Voltes = 3
+export type RoomSettings = { gameLanguage: Language; voltes: Voltes }
 export type RoomStatus = 'waiting' | 'active' | 'match-over' | 'aborted' | 'closed'
 export type RoundStatus = 'choosing-word' | 'guessing' | 'round-over'
 export type PlayerRoundStatus = 'setter' | 'playing' | 'awaiting-forgiveness' | 'solved' | 'failed' | 'eliminated'
@@ -102,9 +105,12 @@ export type PlayerGameView = {
 export type Ack<T = undefined> = (response: { ok: true; data: T } | { ok: false; error: string }) => void
 
 export interface ClientToServerEvents {
-  'room:create': (payload: { name: string; gameLanguage: Language; voltes: Voltes }, ack: Ack<RoomEntry>) => void
+  /** Settings are optional: omitted ones take the defaults (voltes: `DEFAULT_VOLTES`, language: Catalan). */
+  'room:create': (payload: { name: string } & Partial<RoomSettings>, ack: Ack<RoomEntry>) => void
   'room:join': (payload: { name: string; code: string }, ack: Ack<RoomEntry>) => void
   'room:resume': (payload: RoomSession, ack: Ack<PlayerGameView>) => void
+  /** Host only, in the lobby before the match starts; every member receives the new state. */
+  'room:update-settings': (payload: Partial<RoomSettings>, ack: Ack) => void
   'room:start': (ack: Ack) => void
   'round:set-word': (payload: { word: string }, ack: Ack) => void
   'game:guess': (payload: { letter: string }, ack: Ack) => void

@@ -211,10 +211,6 @@ function App() {
     setInterfaceLanguage(next)
     localStorage.setItem(INTERFACE_LANGUAGE_STORAGE_KEY, next)
   }
-  const changeGameLanguage = (next: Language) => {
-    setGameLanguage(next)
-    localStorage.setItem('hangman-game-language', next)
-  }
   const leaveRoom = () => {
     socket.emit('chat:typing', { isTyping: false })
     socket.emit('room:leave')
@@ -321,9 +317,9 @@ function App() {
     onRetry={retryRestore} onLeave={() => leave()} onDismiss={() => { setRestoreStatus('idle'); goTo('/multijugador/') }} />{exitDialog}</>
   if (!room && view === 'learning') return <>{header(learningUnit ? { label: navigationCopy.backToUnits, onExit: () => setLearningUnit(null) } : undefined)}<LearningPage language={interfaceLanguage} unitId={learningUnit} onUnit={setLearningUnit} />{exitDialog}</>
   if (!room && view === 'daily') return <>{header()}<DailyChallengePage language={interfaceLanguage} onActiveGameChange={setDailyGameActive} onHome={returnHome} />{exitDialog}</>
-  if (!room && view === 'multiplayer') return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} invitedRoomCode={invitedRoomCode} onGameLanguage={changeGameLanguage} onEnter={enterRoom} onLearn={startLearning} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="multiplayer" />{footer}{exitDialog}</>
+  if (!room && view === 'multiplayer') return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} invitedRoomCode={invitedRoomCode} onEnter={enterRoom} onLearn={startLearning} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="multiplayer" />{footer}{exitDialog}</>
   if (!room && view === 'help') return <>{header()}<HowToPlayPage language={interfaceLanguage} onNavigate={navigate} />{footer}{exitDialog}</>
-  if (!room) return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} onGameLanguage={changeGameLanguage} onEnter={enterRoom} onLearn={startLearning} onDaily={startDaily} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="home" />{footer}{exitDialog}</>
+  if (!room) return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} onEnter={enterRoom} onLearn={startLearning} onDaily={startDaily} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="home" />{footer}{exitDialog}</>
   if (room.roomStatus === 'waiting') return <>{header({ label: navigationCopy.leaveRoom, onExit: () => leave() })}{connectionNotice}<LobbyPage state={room} interfaceLanguage={interfaceLanguage} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
   return <>{header({ label: room.roomStatus === 'active' ? navigationCopy.leaveMatch : navigationCopy.leaveRoom, onExit: () => requestConfirmedExit(() => leave(), room.roomStatus === 'active' ? 'game' : null) })}{connectionNotice}<GamePage onLeave={() => leave()} onExitToMenu={() => leave('/')} state={room} interfaceLanguage={interfaceLanguage} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
 }

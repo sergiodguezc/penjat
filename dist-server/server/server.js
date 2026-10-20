@@ -3,7 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { Server } from 'socket.io';
 import { ALPHABETS } from '../shared/game.js';
-import { SUPPORTED_VOLTES } from '../shared/protocol.js';
+import { DEFAULT_VOLTES, SUPPORTED_VOLTES } from '../shared/protocol.js';
 import { GameManager } from './game/GameManager.js';
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -131,6 +131,16 @@ const games = new GameManager(process.env.DETERMINISTIC_FIRST_SETTER === '1' ? (
 });
 const cleanName = (value) => typeof value === 'string' && value.trim().length >= 1 && value.trim().length <= 24 ? value.trim() : null;
 const cleanVoltes = (value) => SUPPORTED_VOLTES.includes(value) ? value : undefined;
+const cleanLanguage = (value) => typeof value === 'string' && Object.hasOwn(ALPHABETS, value) ? value : undefined;
+/** Omitted settings keep `fallback`; a present but unsupported value rejects the whole request. */
+function cleanSettings(payload, fallback) {
+    const raw = (payload ?? {});
+    const language = raw.gameLanguage === undefined ? fallback.language : cleanLanguage(raw.gameLanguage);
+    const voltes = raw.voltes === undefined ? fallback.voltes : cleanVoltes(raw.voltes);
+    if ((raw.gameLanguage !== undefined && !language) || (raw.voltes !== undefined && !voltes))
+        return null;
+    return { language, voltes };
+}
 const roomPreview = (rawCode) => {
     const code = rawCode.trim().toUpperCase();
     const room = games.rooms.get(code);
@@ -154,11 +164,10 @@ io.on('connection', (socket) => {
     };
     socket.on('room:create', (payload, ack) => {
         const name = cleanName(payload?.name);
-        const gameLanguage = payload?.gameLanguage;
-        const voltes = cleanVoltes(payload?.voltes);
-        if (!name || !(gameLanguage in ALPHABETS) || voltes === undefined)
+        const settings = cleanSettings(payload, { language: 'ca', voltes: DEFAULT_VOLTES });
+        if (!name || !settings)
             return ack({ ok: false, error: 'invalid-details' });
-        const { room, playerId, reconnectToken } = games.create(socket.id, name, gameLanguage, voltes);
+        const { room, playerId, reconnectToken } = games.create(socket.id, name, settings.language, settings.voltes);
         socket.join(room.code);
         ack({ ok: true, data: { view: room.viewFor(playerId), session: { roomCode: room.code, playerId, reconnectToken } } });
         socket.emit('chat:history', room.chatHistory);
@@ -209,6 +218,16 @@ io.on('connection', (socket) => {
             throw new Error('invalid-skip');
         const room = games.continueWithout(socket.id, payload.playerId);
         console.info('continued without player', { roomCode: room.code, playerId: payload.playerId });
+        broadcast(room.code);
+    }));
+    socket.on('room:update-settings', (payload, ack) => action(ack, () => {
+        const identity = games.identityForSocket(socket.id), room = identity?.room;
+        if (!room)
+            throw new Error('room-not-found');
+        const settings = cleanSettings(payload, {});
+        if (!settings || (!settings.language && !settings.voltes))
+            throw new Error('invalid-settings');
+        room.updateSettings(identity.playerId, settings);
         broadcast(room.code);
     }));
     socket.on('room:start', (ack) => action(ack, () => {

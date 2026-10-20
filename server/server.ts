@@ -3,7 +3,7 @@ import { readFile, stat } from 'node:fs/promises'
 import { extname, resolve, sep } from 'node:path'
 import { Server } from 'socket.io'
 import { ALPHABETS, type Language } from '../shared/game.js'
-import { SUPPORTED_VOLTES, type ClientToServerEvents, type ServerToClientEvents, type Ack, type Voltes } from '../shared/protocol.js'
+import { DEFAULT_VOLTES, SUPPORTED_VOLTES, type ClientToServerEvents, type ServerToClientEvents, type Ack, type Voltes } from '../shared/protocol.js'
 import { GameManager } from './game/GameManager.js'
 
 const PORT = Number(process.env.PORT) || 3001
@@ -130,6 +130,15 @@ const games = new GameManager(process.env.DETERMINISTIC_FIRST_SETTER === '1' ? (
 
 const cleanName = (value: unknown) => typeof value === 'string' && value.trim().length >= 1 && value.trim().length <= 24 ? value.trim() : null
 const cleanVoltes = (value: unknown): Voltes | undefined => SUPPORTED_VOLTES.includes(value as Voltes) ? value as Voltes : undefined
+const cleanLanguage = (value: unknown): Language | undefined => typeof value === 'string' && Object.hasOwn(ALPHABETS, value) ? value as Language : undefined
+/** Omitted settings keep `fallback`; a present but unsupported value rejects the whole request. */
+function cleanSettings(payload: unknown, fallback: { language?: Language; voltes?: Voltes }) {
+  const raw = (payload ?? {}) as { gameLanguage?: unknown; voltes?: unknown }
+  const language = raw.gameLanguage === undefined ? fallback.language : cleanLanguage(raw.gameLanguage)
+  const voltes = raw.voltes === undefined ? fallback.voltes : cleanVoltes(raw.voltes)
+  if ((raw.gameLanguage !== undefined && !language) || (raw.voltes !== undefined && !voltes)) return null
+  return { language, voltes }
+}
 const roomPreview = (rawCode: string) => {
   const code = rawCode.trim().toUpperCase()
   const room = games.rooms.get(code)
@@ -148,10 +157,9 @@ io.on('connection', (socket) => {
 
   socket.on('room:create', (payload, ack) => {
     const name = cleanName(payload?.name)
-    const gameLanguage = payload?.gameLanguage as Language
-    const voltes = cleanVoltes(payload?.voltes)
-    if (!name || !(gameLanguage in ALPHABETS) || voltes === undefined) return ack({ ok: false, error: 'invalid-details' })
-    const { room, playerId, reconnectToken } = games.create(socket.id, name, gameLanguage, voltes)
+    const settings = cleanSettings(payload, { language: 'ca', voltes: DEFAULT_VOLTES })
+    if (!name || !settings) return ack({ ok: false, error: 'invalid-details' })
+    const { room, playerId, reconnectToken } = games.create(socket.id, name, settings.language!, settings.voltes!)
     socket.join(room.code)
     ack({ ok: true, data: { view: room.viewFor(playerId), session: { roomCode: room.code, playerId, reconnectToken } } })
     socket.emit('chat:history', room.chatHistory)
@@ -199,6 +207,15 @@ io.on('connection', (socket) => {
     if (typeof payload?.playerId !== 'string') throw new Error('invalid-skip')
     const room = games.continueWithout(socket.id, payload.playerId)
     console.info('continued without player', { roomCode: room.code, playerId: payload.playerId })
+    broadcast(room.code)
+  }))
+
+  socket.on('room:update-settings', (payload, ack) => action(ack, () => {
+    const identity = games.identityForSocket(socket.id), room = identity?.room
+    if (!room) throw new Error('room-not-found')
+    const settings = cleanSettings(payload, {})
+    if (!settings || (!settings.language && !settings.voltes)) throw new Error('invalid-settings')
+    room.updateSettings(identity.playerId, settings)
     broadcast(room.code)
   }))
 
