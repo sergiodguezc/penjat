@@ -10,6 +10,8 @@ Offline enrichment commands use `OPENAI_API_KEY` and optional model/rate setting
 
 ## Checks by subsystem
 
+Seasonal campaign dates, local preview/disable commands and file ownership are documented in [Seasonal presentation](seasonal-themes.md).
+
 | Area | Commands |
 | --- | --- |
 | Learning / corpus runtime | `npm run test:learning`; `npm run test:vocabulary` |
@@ -17,6 +19,7 @@ Offline enrichment commands use `OPENAI_API_KEY` and optional model/rate setting
 | Invitations / language routing | `npm run test:invitation`; `npm run test:localization` |
 | Navigation / history guard | `npm run test:navigation` |
 | Character drawing | `npm run test:character` |
+| Seasonal calendar / activation | `npm run test:seasonal` |
 | Multiplayer UI (static markup) | `npm run test:multiplayer-ui` |
 | Match results (outcome, standings, rematch states) | `npm run test:match-results` |
 | Server domain | `npm run build:server`, then `npm run test:game`, `npm run test:chat`, `npm run test:lifecycle`, `npm run test:match`, `npm run test:n-player`, `npm run test:connection` (create/join while the client connection is still being established), `npm run test:absence` (controlled-time retained seats: return within the 2-minute grace period, absence in each phase, blocking-only "continue without" permissions and races, return as a spectator, host transfer, rematch, explicit leave, room expiry), `npm run test:lobby-settings` (default create, host-only lobby settings, invalid values, sync, start with confirmed settings, host transfer and reconnection), `npm run test:reconnect` (stored room credentials, legacy migration and restoration: refresh/reopen, transport drop, failure and retry, invalid sessions, explicit leave, two tabs, invitations) |

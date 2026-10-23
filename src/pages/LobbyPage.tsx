@@ -10,6 +10,7 @@ import { errorMessage, type MultiplayerTranslations } from '../multiplayer/i18n'
 import { REQUEST_TIMEOUT_MS, socket } from '../multiplayer/socket'
 import { isPresent } from '../multiplayer/presentation'
 import { AbsenceNotice } from '../components/AbsenceNotice'
+import { ChestnutEmblem } from '../seasonal/SeasonalOrnaments'
 
 export function LobbyPage({ state, interfaceLanguage, messages, playerId, typingPlayers }: { state: PlayerGameView; interfaceLanguage: 'ca' | 'es'; messages: ChatMessage[]; playerId: string; typingPlayers: { playerId: string; playerName: string }[] }) {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
@@ -52,7 +53,7 @@ export function LobbyPage({ state, interfaceLanguage, messages, playerId, typing
   const start = () => { setStartError(''); socket.emit('room:start', (response) => { if (!response.ok) setStartError(errorMessage(response.error, t)) }) }
   return <main className="lobby-page" lang={interfaceLanguage}>
     <div className="lobby-layout"><section className="lobby-card">
-      <span className="eyebrow">{t.share}</span><div className="room-code">{state.code}</div>
+      <span className="eyebrow"><svg className="spooky-only lobby-season-lantern" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><ChestnutEmblem /></svg>{t.share}</span><div className="room-code">{state.code}</div>
       <button className="copy-button" onClick={copy}>{copyStatus === 'copied' ? t.copied : t.copy}</button>
       {copyStatus === 'failed' && <p className="copy-status" role="alert">{t.copyFailed}</p>}
       {canInvite && <div className="lobby-invite">

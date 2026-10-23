@@ -28,6 +28,7 @@
     "test:match-results": "tsx --tsconfig tsconfig.app.json tests/match-results-test.tsx",
     "test:vocab": "python3 -m unittest discover -s tests -p 'test_vocab_pipeline.py'",
     "test:character": "tsx --tsconfig tsconfig.app.json tests/character-test.tsx",
+    "test:seasonal": "tsx --tsconfig tsconfig.app.json tests/seasonal-test.ts",
     "test:learning": "tsx --tsconfig tsconfig.app.json tests/learning-test.ts",
     "test:vocabulary": "tsx --tsconfig tsconfig.app.json tests/vocabulary-contract-test.ts",
     "test:daily": "tsx --tsconfig tsconfig.app.json tests/daily-test.ts",

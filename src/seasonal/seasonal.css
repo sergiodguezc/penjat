@@ -1,0 +1,93 @@
+/* Castanyada is a removable layer over Penjat's existing layout and type system. */
+.spooky-only { display: none; }
+:root[data-season="spooky"] {
+  color-scheme: dark;
+  --paper: #291F30;
+  --paper-deep: #211826;
+  --surface: #382A40;
+  --ink: #F6EBD5;
+  --text-muted: #CABBCE;
+  --magrana: #EF9B58;
+  --safra: #F1D18A;
+  --mar: #9ACFC8;
+  --oliva: #ACBC8C;
+  --primary-hover: #FFB775;
+  --on-primary: #291F30;
+  --success: #9ACFC8;
+  --success-surface: #293F3C;
+  --mar-surface: #2A4146;
+  --oliva-surface: #354232;
+  --error: #FFB1A4;
+  --error-surface: #512E40;
+  --warning: #F1D18A;
+  --warning-surface: #493849;
+  --border: #7B6883;
+  --border-control: #B6A1BF;
+  --border-dashed: #F6EBD538;
+  --focus-ring: #F1D18A;
+  --shadow-ink: 3px 3px 0 #17101D;
+  --shadow-ink-sm: 2px 2px 0 #17101D;
+  --shadow-ink-hover: 5px 5px 0 #17101D;
+  --shadow-ink-pressed: 1px 1px 0 #17101D;
+  --season-chestnut: #F6EBD5;
+  --season-pumpkin: #EF9B58;
+  --season-gold: #F1D18A;
+}
+:root[data-season="spooky"] body {
+  background-image: radial-gradient(#F6EBD528 .7px, transparent 1px), radial-gradient(#F1D18A1C 1px, transparent 1.5px);
+  background-size: 7rem 7rem, 13rem 13rem;
+  background-position: 1rem 2rem, 5rem 4rem;
+}
+:root[data-season="spooky"] .spooky-only { display: block; }
+:root[data-season="spooky"] :is(.ordinary-drawing, .home-eyebrow-default, .home-season-default) { display: none; }
+:root[data-season="spooky"] :is(.home-copy > .page-eyebrow, .preview-tag) { color: var(--paper); background: var(--safra); }
+:root[data-season="spooky"] .home-season-name { display: inline-flex; align-items: center; gap: var(--space-2); }
+.home-season-name svg { width: 1.15em; height: 1.15em; flex: none; }
+.autumn-leaf { position: absolute; top: var(--space-4); right: var(--space-5); width: 3rem; height: auto; transform: rotate(18deg); pointer-events: none; }
+:root[data-season="spooky"] .home-preview { background: #302238; border-color: var(--border); box-shadow: 5px 5px 0 var(--paper-deep); }
+:root[data-season="spooky"] .home-copy h1 { font-variation-settings: 'SOFT' 100, 'WONK' 1; }
+:root[data-season="spooky"] .home-band { color: var(--ink); background: var(--paper-deep); border-block: 1px solid var(--border); }
+:root[data-season="spooky"] :is(.mode-card--mar, .mode-card--safra, .mode-card--oliva) > a { color: var(--ink); background: var(--surface); }
+:root[data-season="spooky"] :is(.page-eyebrow--mar, .page-eyebrow--magrana) { color: var(--paper); }
+:root[data-season="spooky"] :is(.page-eyebrow--safra, .page-eyebrow--oliva, .unit-pill, .player-list li > span, .daily-entry .mode-icon, .quick-card-tag, .forgive-action, .is-leader .standing-rank) { color: var(--paper); }
+:root[data-season="spooky"] .room-code { background: var(--paper-deep); }
+:root[data-season="spooky"] .quick-card:hover { background: var(--surface); }
+:root[data-season="spooky"] :is(.mode-art-grid i, .mode-art-code span, .quick-play-badge) { border-color: var(--border); }
+:root[data-season="spooky"] .keyboard button:not(:disabled):hover { color: var(--paper); }
+:root[data-season="spooky"] .keyboard button.correct { color: var(--paper); }
+:root[data-season="spooky"] :is(.match-outcome, .daily-result) { background: var(--surface); }
+:root[data-season="spooky"] .match-outcome-mark { color: var(--paper); background: var(--safra); }
+:root[data-season="spooky"] .match-outcome-art { background: #302238; border-color: var(--border); }
+:root[data-season="spooky"] .danger-action:not(:disabled):hover { color: var(--paper); background: #FFC5BB; }
+.lobby-season-lantern { width: 2rem; height: 2rem; flex: none; pointer-events: none; }
+:root[data-season="spooky"] .lobby-card > .eyebrow { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
+
+/* Art colors stay independent of functional success/error tokens. */
+.castanyera-scene {
+  --cast-sky: #302238;
+  --cast-outline: #211826;
+  --cast-cream: #F6EBD5;
+  --cast-moon: #F1D18A;
+  --cast-skin: #EAC1A0;
+  --cast-blouse: #E9DDCA;
+  --cast-apron: #D9C49C;
+  --cast-shawl: #C87553;
+  --cast-skirt: #8E718F;
+  --cast-metal: #92858D;
+  --cast-chestnut: #B77950;
+  --cast-flame: #F39A50;
+  --cast-ash: #9F929D;
+}
+.seasonal-preview { width: min(100%, var(--page-max)); margin: auto; padding: var(--space-6); }
+.seasonal-preview h1 { font: 800 var(--text-display)/var(--leading-tight) var(--font-display); }
+.seasonal-preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: var(--space-5); margin-top: var(--space-6); }
+.seasonal-preview-grid figure { margin: 0; padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); }
+.seasonal-preview-grid svg { display: block; width: 100%; max-width: 15rem; margin: auto; }
+.seasonal-preview-grid figcaption { display: grid; gap: var(--space-1); text-align: center; }
+@media (max-width: 37.4375em) {
+  :root[data-season="spooky"] .autumn-leaf { display: none; }
+  :root[data-season="spooky"] .home-preview { background: none; box-shadow: none; }
+}
+@media (max-width: 41.25em) {
+  :root[data-season="spooky"] .game-columns .hangman { width: 8rem; }
+}

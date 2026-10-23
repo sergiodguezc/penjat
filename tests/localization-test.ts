@@ -8,6 +8,7 @@ import { HomePage } from '../src/pages/HomePage'
 import { getDailyChallenge } from '../src/daily/challenge'
 import { dailyTranslations } from '../src/daily/i18n'
 import { homeTranslations } from '../src/home/i18n'
+import { seasonalTranslations } from '../src/seasonal/i18n'
 import { multiplayerTranslations } from '../src/multiplayer/i18n'
 import { ALPHABETS, isCorrectGuess } from '../shared/game'
 
@@ -17,6 +18,9 @@ assert.equal(readInterfaceLanguage(storage(null)), 'ca')
 assert.equal(readInterfaceLanguage(storage('es')), 'es')
 assert.equal(readInterfaceLanguage(storage('ca')), 'ca')
 assert.equal(readInterfaceLanguage(storage('invalid')), 'ca')
+assert.equal(seasonalTranslations.ca.spooky, 'Edició Castanyada')
+assert.equal(seasonalTranslations.es.spooky, 'Edición Castanyada')
+assert.deepEqual(Object.keys(seasonalTranslations.ca), Object.keys(seasonalTranslations.es))
 
 assert.equal(normalizeRoute('/'), '/')
 assert.equal(normalizeRoute('/multijugador'), '/multijugador/')
@@ -88,6 +92,7 @@ try {
         onEnter() {}, onLearn() {}, onDaily() {}, onMultiplayer() {}, onHelp() {},
       }))
       assert.equal((html.match(/<h1>/g) ?? []).length, 1)
+      assert.ok(html.includes(seasonalTranslations[language].spooky), 'seasonal identity follows interface language')
       // Phase 3B styles one accent word inside the heading; its text (the SEO headline) is unchanged.
       assert.equal(html.match(/<h1>(.*?)<\/h1>/)![1].replace(/<[^>]+>/g, ''), language === 'ca' ? 'Juga al penjat online en català.' : 'Juega a Penjat online.')
       assert.ok(html.includes(`<nav class="home-modes" aria-label="${copy.modes}">`))

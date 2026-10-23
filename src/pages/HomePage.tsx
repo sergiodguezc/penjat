@@ -12,6 +12,8 @@ import { DAILY_CHALLENGE_PUBLIC_PATH, getDailyChallenge } from '../daily/challen
 import { getHomeDailyStatus } from '../daily/homeSummary'
 import { dailyTranslations } from '../daily/i18n'
 import { homeTranslations } from '../home/i18n'
+import { seasonalTranslations } from '../seasonal/i18n'
+import { AutumnLeaf } from '../seasonal/SeasonalOrnaments'
 import { routeClick as route } from '../navigation/links'
 
 type Props = {
@@ -274,9 +276,12 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
     <section className="home-shell">
       <div className="home-hero">
         <section className="home-copy">
-          <p className="page-eyebrow page-eyebrow--safra">{homeCopy.eyebrow}</p>
+          <p className="page-eyebrow page-eyebrow--safra"><span className="home-eyebrow-default">{homeCopy.eyebrow}</span><span className="spooky-only home-season-name">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M5 16q-2-7 7-12q9 5 7 12q-7 8-14 0Z" /><path d="m8 10 8 7m-7 0 7-7" /></svg>
+            {seasonalTranslations[interfaceLanguage].spooky}
+          </span></p>
           <h1>{isCatalan ? <>Juga al penjat online <em>en català.</em></> : <>Juega a Penjat <em>online.</em></>}</h1>
-          <p className="home-lede">{homeCopy.lede}</p>
+          <p className="home-lede"><span className="home-season-default">{homeCopy.lede}</span><span className="spooky-only">{seasonalTranslations[interfaceLanguage].lede}</span></p>
           <nav className="home-modes" aria-label={homeCopy.modes}>
             <ul className="mode-pair">
               <li><a className="primary-action" href="/multijugador" aria-describedby="home-mp" onClick={route(onMultiplayer)}><ModeIcon mode="multiplayer" />{homeCopy.multiplayer}</a>
@@ -295,10 +300,11 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
           </nav>
         </section>
         <aside className="home-preview" aria-hidden="true">
+          <AutumnLeaf />
           <span className="preview-tag">{homeCopy.previewTag}</span>
           <div className="preview-board">
             <div className="preview-drawing">
-              <HangmanDrawing errors={4} />
+              <HangmanDrawing errors={4} seasonalErrors={0} />
             </div>
             <div className="preview-word">
               {previewSlots.map((letter, index) => <span key={`${letter || 'blank'}-${index}`} className="preview-letter">{letter}</span>)}

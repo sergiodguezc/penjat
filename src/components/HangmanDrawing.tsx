@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { CastanyeraScene } from '../seasonal/CastanyeraScene'
 
 type Props = {
   errors: number
@@ -6,12 +7,14 @@ type Props = {
   label?: string
   mood?: 'neutral' | 'win' | 'loss'
   size?: 'large' | 'compact'
+  /** Decorative previews/verdicts can retain their ordinary pose while showing the actual seasonal fire. */
+  seasonalErrors?: number
 }
 
 // Adapted from Lovable's barretina illustration. Gallows never consume an error.
 const PART_ERROR = { head: 1, torso: 2, leftArm: 3, rightArm: 4, leftLeg: 5, rightLeg: 6 } as const
 
-export function HangmanDrawing({ errors, label, mood = 'neutral', size = 'large' }: Props) {
+export function HangmanDrawing({ errors, label, mood = 'neutral', size = 'large', seasonalErrors = errors }: Props) {
   const previousErrors = useRef(errors)
   useEffect(() => { previousErrors.current = errors }, [errors])
   const rescued = mood === 'win'
@@ -22,6 +25,7 @@ export function HangmanDrawing({ errors, label, mood = 'neutral', size = 'large'
 
   return <svg className={`hangman hangman--${size}`} width={size === 'compact' ? 44 : 240} height={size === 'compact' ? 48 : 260} viewBox="0 0 240 260"
     role={label ? 'img' : undefined} aria-label={label ? `${label}: ${errors} / 6` : undefined} aria-hidden={label ? undefined : true} focusable="false">
+    <g className="ordinary-drawing">
     <circle cx="206" cy="110" r="22" fill="var(--safra)" opacity={mood === 'loss' ? .4 : .9} />
     <path d="M14 238 Q120 228 226 238" stroke="var(--ink)" strokeWidth="3" fill="none" strokeLinecap="round" />
     {!rescued && <g className="gallows" stroke="var(--ink)" strokeWidth="5" strokeLinecap="round" fill="none">
@@ -42,5 +46,7 @@ export function HangmanDrawing({ errors, label, mood = 'neutral', size = 'large'
       {part('rightLeg', <path d="M150 160 L170 198" />)}
     </g>
     {rescued && <path d="M62 100 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3z" fill="var(--mar)" />}
+    </g>
+    <g className="spooky-only"><CastanyeraScene errors={seasonalErrors} mood={mood} /></g>
   </svg>
 }

@@ -47,7 +47,7 @@ export function MatchResults({ state, playerId, t, language, onRematch, onNewRoo
         {outcome.kind === 'self-won' && <span className="match-outcome-mark" aria-hidden="true">★</span>}{copy.heading}
       </h2>
       <p id="match-outcome-lede" className="match-outcome-lede">{copy.lede}</p>
-      {mood && <div className="match-outcome-art"><HangmanDrawing errors={MAX_ERRORS} mood={mood} /></div>}
+      {mood && <div className="match-outcome-art"><HangmanDrawing errors={MAX_ERRORS} seasonalErrors={state.self?.errors ?? MAX_ERRORS} mood={mood} /></div>}
     </div>
     <RematchActions state={state} playerId={playerId} t={t} language={language} onRematch={onRematch} onNewRoom={onNewRoom} onExitToMenu={onExitToMenu} />
     {standings && <FinalStandings standings={standings} t={t} />}
