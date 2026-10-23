@@ -318,6 +318,32 @@ function completedRoom(count: number) {
 function gameMarkup(room: GameRoom, language: 'ca' | 'es' = 'ca', playerId = '0') {
   return renderToStaticMarkup(<GamePage state={room.viewFor(playerId)} interfaceLanguage={language} messages={[]} playerId={playerId} typingPlayers={[]} onLeave={() => {}} onExitToMenu={() => {}} />)
 }
+// Forgiveness retains six errors: the current resolved status must drive both players' illustrations.
+for (const language of ['ca', 'es'] as const) for (const outcome of ['solved', 'failed', 'eliminated'] as const) {
+  const room = new GameRoom('FIRE6', 'ca', 1, () => 0)
+  for (let i = 0; i < 3; i++) room.addPlayer(String(i), `s${i}`, `t${i}`, `Player ${i}`)
+  room.start('0'); room.setWord('0', 'A'); room.observePlayer('0', '1')
+  for (const letter of ['B', 'C', 'D', 'E', 'F', 'G']) room.guess('1', letter)
+  assert.equal(room.viewFor('1').self?.status, 'awaiting-forgiveness')
+  for (const viewer of ['0', '1']) assert.match(gameMarkup(room, language, viewer), /data-expression="sad"/)
+  const request = room.viewFor('0').forgivenessRequests[0]
+  room.decideForgiveness('0', request.id, outcome !== 'failed')
+  if (outcome !== 'failed') {
+    assert.equal(room.viewFor('1').self?.errors, 6, 'forgiving a life does not erase mistakes')
+    assert.equal(room.viewFor('1').self?.status, 'playing')
+    room.guess('1', outcome === 'solved' ? 'A' : 'H')
+  }
+  assert.equal(room.viewFor('1').self?.status, outcome)
+  assert.equal(room.viewFor('1').self?.errors, outcome === 'eliminated' ? 7 : 6)
+  for (const viewer of ['0', '1']) {
+    const beforeRender = structuredClone(room.viewFor(viewer))
+    const html = gameMarkup(room, language, viewer)
+    assert.deepEqual(room.viewFor(viewer), beforeRender, 'outcome illustration/rendering cannot mutate authoritative gameplay state')
+    assert.match(html, new RegExp(`data-expression="${outcome === 'solved' ? 'warm' : 'sad'}"`))
+    assert.equal((html.match(/data-flame=/g) ?? []).length, 0, 'the expression never rewrites the fire/mistake count')
+  }
+}
+console.log('Castanyera forgiveness → solved/denied/eliminated rendering passed for guesser and chooser in CA/ES')
 const two = completedRoom(2)
 assert.deepEqual(rematchAvailability(two.viewFor('0')), { available: true, total: 2, readyIds: [] })
 assert.match(gameMarkup(two), /Revenja/)
