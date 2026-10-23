@@ -14,7 +14,7 @@ Start with [AGENTS.md](AGENTS.md), [architecture](docs/architecture.md), [develo
 
 ## Requirements
 
-- Node.js 22.12 or newer in the Node 22 release line
+- Node.js 24 (>=24 <25); `nvm use` selects the supported major
 - npm
 
 ## Local development
@@ -77,6 +77,8 @@ Alternatively, create a Node Web Service manually with:
 - Health check path: `/health`
 
 No application environment variables are required.
+
+The Blueprint pins `NODE_VERSION=24.22.1`. Before deploying an existing service, check its Render dashboard: `NODE_VERSION` takes precedence over `.node-version`, `.nvmrc` and `package.json` engines. Align any dashboard override with the Blueprint; repository changes alone do not confirm the running service's version. Keep one instance, and ensure development dependencies are installed during the build. See the [Node 24 migration report](docs/node24-migration-report.md) for validation limits and the pre-deployment checks.
 
 ## Deploy to Railway
 

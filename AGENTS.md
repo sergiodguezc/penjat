@@ -12,7 +12,7 @@ Catalan hangman with Catalan/Spanish interfaces, vocabulary learning, a persiste
 
 ## Commands
 
-Use Node 22 (>=22.12), npm and Python 3 for offline vocabulary checks.
+Use Node 24 (>=24 <25), npm and Python 3 for offline vocabulary checks.
 
 - Install: `npm ci` (lockfile) or `npm install`.
 - Full-stack dev: `npm run dev`; separate: `npm run dev:vite-only` and `npm run dev:server`. `dev:client` also starts both.
@@ -37,3 +37,19 @@ Use Node 22 (>=22.12), npm and Python 3 for offline vocabulary checks.
 ## Working sessions
 
 Inspect the relevant code/tests first. Preserve unrelated work; add focused regressions for fixes, run relevant checks, and document behavior changes. Do not require every task to read all docs or run all suites. Do not deploy, commit or push unless requested. Record unresolved evidence in a task report, not permanent global instructions.
+
+
+## Efficient implementation and verification
+
+- Complete related code changes before running expensive verification. Do not build or test after every individual edit.
+- During implementation, prefer code inspection and reasoning. Run intermediate checks only when they help catch a significant issue early.
+- After implementation, run the smallest relevant tests first. Fix failures and rerun only affected checks.
+- Only run `npm run build` when the change requires production-build verification, generated outputs must be updated, or the user explicitly requests it. For simple UI changes, a production build is not required by default. When building is necessary, wait until related changes are complete and avoid rebuilding unless subsequent modifications invalidate the result.
+- Do not run the full regression, E2E, browser or SEO suites for small unrelated changes. Reserve them for relevant high-risk changes or explicit requests.
+- For visual-only changes, prefer focused visual checks. For gameplay or multiplayer changes, run the corresponding regression tests.
+- Backend tests that consume generated `dist-server` files require an up-to-date server build. Build once before running the affected tests, rather than before every test.
+- Avoid repeating successful checks unless later changes could invalidate their results.
+- At completion, report which tests and builds ran, their results, and anything left unverified.
+
+Default workflow: inspect → plan → implement all related changes → run necessary targeted checks → fix failures → perform final verification only if needed.
+Do not automatically execute a full build or regression suite at the end of every task. Verification should be proportional to the change's scope and risk.

@@ -2,7 +2,7 @@
 
 ## Setup
 
-Use Node >=22.12 <23 and npm. `npm ci` installs the lockfile; `npm install` is also supported. Python 3 (standard library only) is needed for corpus checks. No database setup or secrets are required for local gameplay. `npm run dev` launches Vite (5173) and the server (3001); `dev:client` is a compatibility alias for both. To separate processes, use `npm run dev:vite-only` and `npm run dev:server` in different terminals. Vite proxies `/api` and `/socket.io`; the socket module uses the direct 3001 development URL by default.
+Use Node >=24 <25 and npm (`nvm install && nvm use` with `.nvmrc`). `npm ci` installs the lockfile; `npm install` is also supported. Python 3 (standard library only) is needed for corpus checks. No database setup or secrets are required for local gameplay. `npm run dev` launches Vite (5173) and the server (3001); `dev:client` is a compatibility alias for both. To separate processes, use `npm run dev:vite-only` and `npm run dev:server` in different terminals. Vite proxies `/api` and `/socket.io`; the socket module uses the direct 3001 development URL by default.
 
 `PORT` (default 3001), `HOST` (default 0.0.0.0), `NODE_ENV`, optional `CLIENT_ORIGIN` and build-time `VITE_SERVER_URL` configure hosting. `DETERMINISTIC_FIRST_SETTER=1` is useful for local test scenarios. `TEST_SERVER_URL` selects the integration test target. Do not point tests at production. `.env.example` documents split-origin configuration. Node start does not implicitly load arbitrary `.env` files.
 
