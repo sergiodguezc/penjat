@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { GameRoom } from '../server/game/GameRoom'
-import { chatSticksToBottom, multiplayerPhase } from '../src/multiplayer/presentation'
+import { chatSticksToBottom, continuesChatGroup, multiplayerPhase } from '../src/multiplayer/presentation'
 import * as presentation from '../src/multiplayer/presentation'
 import { rankByScore } from '../shared/ranking'
 import React from 'react'
@@ -241,7 +241,7 @@ assert.match(emptyChat, /<section class="room-chat is-empty" aria-label="Xat">/)
 assert.match(emptyChat, /class="chat-empty">Encara no hi ha missatges\./)
 const fullChat = renderToStaticMarkup(<RoomChat messages={[{ id: 'm1', senderId: 'p1', senderName: 'Júlia', text: 'Hola', timestamp: 1, reactions: { '❤️': [], '😂': [], '💀': [] } }]} currentPlayerId="p0" typingPlayers={[]} t={t} />)
 assert.match(fullChat, /<section class="room-chat" aria-label="Xat">/)
-assert.match(fullChat, /class="reaction-trigger" aria-label="Reacciona al missatge de Júlia" aria-expanded="false"/)
+assert.match(fullChat, /class="reaction-trigger"[^>]*aria-label="Reacciona al missatge de Júlia" aria-expanded="false"/)
 console.log('Compact live ranking regressions passed')
 
 const request = { id: 'request-1', roundId: 'round-1', playerId: 'C', setterId: 'A', status: 'pending' as const, createdAt: 1, decidedAt: null }
@@ -449,3 +449,15 @@ console.log('Secret-word label regressions passed in CA/ES')
   assert.equal(chatSticksToBottom('m2', other, 'p0', true), true, 'reactions at the bottom keep the end visible')
   console.log('Chat scroll decisions passed')
 }
+
+// Consecutive short messages share metadata without losing their individual reaction targets.
+const chatMessage = { id: 'short-1', senderId: 'p1', senderName: 'Júlia', text: 'Sí', timestamp: 1, reactions: { '❤️': [], '😂': [], '💀': [] } }
+assert.equal(continuesChatGroup(undefined, chatMessage), false)
+assert.equal(continuesChatGroup(chatMessage, { ...chatMessage, timestamp: 120000 }), true)
+assert.equal(continuesChatGroup(chatMessage, { ...chatMessage, timestamp: 120001 }), false)
+assert.equal(continuesChatGroup(chatMessage, { ...chatMessage, senderId: 'p2' }), false)
+assert.equal(continuesChatGroup(chatMessage, { ...chatMessage, timestamp: 0 }), false)
+const conversation = renderToStaticMarkup(<RoomChat messages={[chatMessage, { ...chatMessage, id: 'short-2', text: '😂', timestamp: 2 }]} currentPlayerId="p0" typingPlayers={[]} t={t} />)
+assert.equal((conversation.match(/<strong>Júlia<\/strong>/g) ?? []).length, 1)
+assert.equal((conversation.match(/class="reaction-trigger"/g) ?? []).length, 2)
+assert.match(conversation, /class="continued"/)

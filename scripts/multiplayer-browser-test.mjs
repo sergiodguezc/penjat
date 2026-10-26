@@ -181,6 +181,10 @@ async function scenario(driver, label, roster) {
     order: tieOrder,
     during: async (_, setter) => {
       writer = [...browsers].sort((a, b) => b.browser.width - a.browser.width).find((m) => m !== setter)
+      if (writer.browser.width < 1000) {
+        await writer.page.eval('(document.querySelector(".chat-launcher > button").click(), true)')
+        await writer.page.waitFor('document.querySelector(".chat-dialog").open')
+      }
       await writer.page.eval('(document.querySelector(".chat-form input").focus(), true)')
       for (const character of 'Hola') await writer.page.key(character)
     },
@@ -193,6 +197,7 @@ async function scenario(driver, label, roster) {
     assert.equal(await writer.page.eval('document.activeElement === document.querySelector(".chat-form input")'), true, 'chat keeps focus across ranking updates')
     await writer.page.key(KEY.Enter)
     for (const member of browsers) await member.page.waitFor(`[...document.querySelectorAll('.chat-messages')].some((c) => c.textContent.includes('Hola'))`, `${member.name} receives chat`)
+    if (writer.browser.width < 1000) await writer.page.eval('(document.querySelector(".chat-close").click(), true)')
     console.log('  ✓ chat draft and focus survive a ranking update; message reaches every browser')
   }
   for (const member of browsers) await shot(member, 'tie')

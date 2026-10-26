@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { ChatMessage, PlayerGameView, RoomSettings } from '../../shared/protocol'
 import { MAX_ROOM_PLAYERS, SUPPORTED_VOLTES } from '../../shared/protocol'
 import { LanguageSelector } from '../components/LanguageSelector'
@@ -12,7 +12,7 @@ import { isPresent } from '../multiplayer/presentation'
 import { AbsenceNotice } from '../components/AbsenceNotice'
 import { ChestnutEmblem } from '../seasonal/SeasonalOrnaments'
 
-export function LobbyPage({ state, interfaceLanguage, messages, playerId, typingPlayers }: { state: PlayerGameView; interfaceLanguage: 'ca' | 'es'; messages: ChatMessage[]; playerId: string; typingPlayers: { playerId: string; playerName: string }[] }) {
+export function LobbyPage({ state, interfaceLanguage, messages, playerId, typingPlayers, chat }: { state: PlayerGameView; interfaceLanguage: 'ca' | 'es'; chat?: ReactNode; messages: ChatMessage[]; playerId: string; typingPlayers: { playerId: string; playerName: string }[] }) {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [inviteStatus, setInviteStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [startError, setStartError] = useState('')
@@ -67,7 +67,7 @@ export function LobbyPage({ state, interfaceLanguage, messages, playerId, typing
       {startError && <p className="form-error" role="alert">{startError}</p>}
       <div className="lobby-meta"><span>{activePlayers.length} / {MAX_ROOM_PLAYERS} {t.players}</span></div>
       <ul className="player-list">{state.players.map((player) => <li key={player.id} className={player.active ? '' : 'player-departed'}><span>{player.name.charAt(0)}</span>{player.name}{player.id === state.hostId && <small>{t.host}</small>}{player.active && player.connectionState !== 'connected' && <small>{player.connectionState === 'reconnecting' ? t.statusReconnecting : t.statusDisconnected}</small>}</li>)}</ul>
-    </section><RoomChat messages={messages} currentPlayerId={playerId} typingPlayers={typingPlayers} t={t} /></div>
+    </section>{chat ?? <RoomChat messages={messages} currentPlayerId={playerId} typingPlayers={typingPlayers} t={t} language={interfaceLanguage} />}</div>
   </main>
 }
 

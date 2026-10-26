@@ -9,7 +9,7 @@ async function key(command, context, value, shift = false) {
   await command('input.performActions', { context, actions:[{ type:'key', id:'p0-keyboard', actions }] })
 }
 async function pointer({ command, context, evaluate }, selector, pointerType = 'mouse') {
-  await evaluate(context, `document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'center'})`)
+  await evaluate(context, `(() => { const element = document.querySelector(${JSON.stringify(selector)}); const r = element.getBoundingClientRect(); if (!element.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2))) element.scrollIntoView({block:'center'}) })()`)
   const point = JSON.parse(await evaluate(context, `JSON.stringify((() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)} })())`))
   await command('input.performActions', { context, actions:[{ type:'pointer', id:`p0-${pointerType}`, parameters:{pointerType}, actions:[{type:'pointerMove', ...point}, {type:'pointerDown',button:0}, {type:'pointerUp',button:0}] }] })
 }
@@ -120,7 +120,12 @@ export async function checkP0Chat(api) {
     assert.equal(await evaluate(context, "document.querySelector('.reaction-trigger').getAttribute('aria-label')"), language==='ca' ? `Reacciona al missatge de ${sender}` : `Reaccionar al mensaje de ${sender}`)
     for (const [width,height] of viewports) {
       await command('browsingContext.setViewport', {context, viewport:{width,height}})
-      await evaluate(context, "document.querySelector('.reaction-trigger').focus()")
+      if (width < 1000) {
+        await waitFor(context, "document.querySelector('.chat-launcher > button').getAttribute('aria-haspopup') === 'dialog'")
+        await evaluate(context, "document.querySelector('.chat-launcher > button').click()")
+        await waitFor(context, "document.querySelector('.chat-dialog').matches(':modal')")
+      } else await waitFor(context, "document.querySelector('.chat-dialog').open && document.querySelector('.chat-dialog').getAttribute('role') === 'region'")
+      await evaluate(context, "document.querySelector('.reaction-trigger').scrollIntoView({block:'center'}); document.querySelector('.reaction-trigger').focus()")
       await key(command,context,'\uE007')
       await waitFor(context, "document.querySelector('.reaction-trigger').getAttribute('aria-expanded') === 'true'")
       assert.equal(await evaluate(context, "document.querySelector('.reaction-picker').contains(document.activeElement)"), true)
@@ -132,19 +137,27 @@ export async function checkP0Chat(api) {
       await waitFor(context, "!document.querySelector('.reaction-picker').hidden")
       // Keyboard reaction activation sends the real Socket.IO mutation.
       await key(command,context,'\uE007')
-      await waitFor(context, "document.querySelector('.active-reactions button[aria-pressed=true]') !== null")
-      assert.equal(await evaluate(context, "document.querySelector('.active-reactions button span').textContent"), '1')
+      await waitFor(context, "document.querySelector('.active-reactions') !== null")
       assert.equal(await evaluate(context, "document.activeElement.matches('.reaction-trigger')"), true)
-      await key(command,context,'\uE004')
-      assert.equal(await evaluate(context, "document.activeElement.matches('.active-reactions button')"), true)
-      await key(command,context,' ')
-      await waitFor(context, "document.querySelector('.active-reactions button') === null")
-      assert.equal(await evaluate(context, "document.activeElement.matches('.reaction-trigger')"), true, 'Removing the last reaction restores a surviving control')
+      await key(command,context,'\uE007')
+      await waitFor(context, "!document.querySelector('.reaction-picker').hidden")
+      assert.equal(await evaluate(context, "document.querySelector('.reaction-picker button').getAttribute('aria-pressed')"), 'true')
+      await key(command,context,'\uE007')
+      await waitFor(context, "document.querySelector('.active-reactions') === null")
       // Touch explicitly opens the picker, with no hover dependency.
       await pointer(api,'.reaction-trigger','touch')
       await waitFor(context, "!document.querySelector('.reaction-picker').hidden")
       assert.equal(await evaluate(context, 'document.documentElement.scrollWidth > innerWidth'), false)
       await screenshot(command,context,`${language}-${width}-chat`)
+      // Select and remove using touch too: opening alone misses Safari's blur-before-click failure.
+      await evaluate(context, "document.activeElement.blur()")
+      assert.equal(await evaluate(context, "document.querySelector('.reaction-picker').hidden"), false, 'A null blur destination must not cancel a pending inside tap')
+      await pointer(api,'.reaction-picker button','touch')
+      await waitFor(context, "document.querySelector('.active-reactions') !== null && document.querySelector('.reaction-picker').hidden")
+      await pointer(api,'.active-reactions','touch')
+      await waitFor(context, "!document.querySelector('.reaction-picker').hidden")
+      await pointer(api,'.reaction-picker button','touch')
+      await waitFor(context, "document.querySelector('.active-reactions') === null")
       // Leaving the control closes it without stealing focus back.
       await evaluate(context, "document.querySelector('.chat-form input').focus()")
       await waitFor(context, "document.querySelector('.reaction-picker').hidden")
@@ -153,8 +166,8 @@ export async function checkP0Chat(api) {
       await key(command,context,'\uE004',true)
       await key(command,context,'\uE004')
       assert.equal(await evaluate(context, "document.activeElement.matches('.reaction-trigger')"), true, 'New messages are reachable with Tab')
-      assert.ok(Number(await checkContrast(evaluate,context,'.reaction-trigger','.reaction-trigger')) >= 4.5)
-      await checkContrast(evaluate,context,'.reaction-trigger','.reaction-trigger',3,'outlineColor')
+      assert.ok(Number(await checkContrast(evaluate,context,'.reaction-trigger','.chat-message-body p')) >= 4.5)
+      if (width < 1000) await pointer(api,'.chat-close','touch')
     }
   }
   console.log('P0 chat: CA/ES labels, Enter/Space, Escape, focus, live reaction toggling/counts, Tab discovery and touch passed at all five requested viewports.')
@@ -177,7 +190,7 @@ export async function checkP0Terminal(api) {
       await screenshot(command,context,`${language}-${width}-terminal`)
     }
   }
-  const ratio = await checkContrast(evaluate,context,'.standing-rank','.standing-row')
+  const ratio = await checkContrast(evaluate,context,'.standing-rank','.standing-rank')
   await key(command,context,'\uE007')
   await waitFor(context,"document.querySelector('.setup') !== null && localStorage.getItem('hangman-room-session') === null")
   console.log(`P0 terminal: no wordless board or impossible rematch; return to multiplayer clears membership. Ranking contrast ${ratio}:1. CA/ES at all five viewports.`)

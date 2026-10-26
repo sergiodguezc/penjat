@@ -116,9 +116,9 @@ export async function checkMatchResultsFlow({ origin, io, sockets, command, eval
 
   // Phone: persistent bar visible from the first screen and after scrolling to the end.
   await command('browsingContext.setViewport', { context, viewport: { width: 390, height: 844 } })
-  const phone = JSON.parse(await evaluate(context, `(() => { scrollTo(0, 0); const top = document.querySelector('.match-actions .primary-action').getBoundingClientRect(); scrollTo(0, document.documentElement.scrollHeight); const bottom = document.querySelector('.match-actions .primary-action').getBoundingClientRect(), bar = document.querySelector('.match-actions').getBoundingClientRect(), chat = document.querySelector('.room-chat').getBoundingClientRect(); return JSON.stringify({ position: getComputedStyle(document.querySelector('.match-actions')).position, top: top.bottom <= innerHeight, bottom: bottom.bottom <= innerHeight, chatClear: chat.bottom <= bar.top, overflow: document.documentElement.scrollWidth > innerWidth }) })()`))
+  const phone = JSON.parse(await evaluate(context, `(() => { const main = document.querySelector('.match-over-page'); main.scrollTop = 0; const top = document.querySelector('.match-actions .primary-action').getBoundingClientRect(); main.scrollTop = main.scrollHeight; const bottom = document.querySelector('.match-actions .primary-action').getBoundingClientRect(), bar = document.querySelector('.match-actions').getBoundingClientRect(), rail = document.querySelector('.chat-launcher').getBoundingClientRect(); return JSON.stringify({ position: getComputedStyle(document.querySelector('.match-actions')).position, top: top.bottom <= innerHeight, bottom: bottom.bottom <= innerHeight, chatClear: bar.bottom <= rail.top && main.getBoundingClientRect().bottom <= rail.top, overflow: document.documentElement.scrollWidth > innerWidth }) })()`))
   assert.deepEqual(phone, { position: 'fixed', top: true, bottom: true, chatClear: true, overflow: false })
-  await evaluate(context, 'scrollTo(0, 0)')
+  await evaluate(context, 'document.querySelector(".match-over-page").scrollTop = 0')
   await screenshot('es-390-real-reconnecting')
 
   // Request: pending is not actionable, a second activation sends nothing, focus lands on the requested state.

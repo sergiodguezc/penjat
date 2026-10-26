@@ -19,7 +19,11 @@ export async function checkResponsiveScope({ context, command, evaluate, page, r
     assert.equal(await evaluate(context, 'document.documentElement.scrollWidth > innerWidth'), false, `${page} overflow at ${width}`)
     // Phase 3B: the help header is a stacked page head; the numbered rule cards go from one column on phones to two.
     if (page === 'help') assert.equal(await evaluate(context, "getComputedStyle(document.querySelector('.howto-steps ol')).gridTemplateColumns.split(' ').length"), width <= 599 ? 1 : 2)
-    if (page === 'lobby') assert.equal(await evaluate(context, "getComputedStyle(document.querySelector('.lobby-layout .room-chat')).minHeight"), width <= 660 ? '380px' : '500px')
+    if (page === 'lobby') {
+      assert.equal(await evaluate(context, "getComputedStyle(document.querySelector('.lobby-layout .room-chat')).minHeight"), '0px')
+      assert.equal(await evaluate(context, "getComputedStyle(document.querySelector('.chat-launcher')).position"), 'fixed')
+      assert.equal(await evaluate(context, "Math.round(document.querySelector('main').getBoundingClientRect().bottom - document.querySelector('.chat-launcher').getBoundingClientRect().top)"), 0, 'Chat rail stays outside the game scroll viewport')
+    }
     if (page === 'match') assert.equal(await evaluate(context, "getComputedStyle(document.querySelector('.match-header')).flexWrap"), width <= 660 ? 'wrap' : 'nowrap')
     if (baseline) {
       await evaluate(context, `(() => {

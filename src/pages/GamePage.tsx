@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { ALPHABETS, MAX_ERRORS, normalizeGuess } from '../../shared/game'
 import type { Ack, ChatMessage, PlayerGameView } from '../../shared/protocol'
 import { HangmanDrawing } from '../components/HangmanDrawing'
@@ -17,9 +17,9 @@ import { errorMessage, multiplayerTranslations } from '../multiplayer/i18n'
 import { socket } from '../multiplayer/socket'
 import { hasSelectedWord, multiplayerPhase } from '../multiplayer/presentation'
 
-type Props = { onLeave: () => void; onExitToMenu: () => void; state: PlayerGameView; interfaceLanguage: 'ca' | 'es'; messages: ChatMessage[]; playerId: string; typingPlayers: { playerId: string; playerName: string }[] }
+type Props = { onLeave: () => void; onExitToMenu: () => void; state: PlayerGameView; interfaceLanguage: 'ca' | 'es'; chat?: ReactNode; messages: ChatMessage[]; playerId: string; typingPlayers: { playerId: string; playerName: string }[] }
 
-export function GamePage({ state, interfaceLanguage, messages, playerId, typingPlayers, onLeave, onExitToMenu }: Props) {
+export function GamePage({ state, interfaceLanguage, messages, playerId, typingPlayers, onLeave, onExitToMenu, chat }: Props) {
   const [word, setWord] = useState('')
   const [error, setError] = useState('')
   const t = multiplayerTranslations[interfaceLanguage]
@@ -131,7 +131,7 @@ export function GamePage({ state, interfaceLanguage, messages, playerId, typingP
       </section>}
       {/* After the board in reading order: on stacked layouts the game comes first; beside it (≥1000px) the grid places the ranking in its own column. */}
       {!matchOver && <Scoreboard players={state.players} setterId={round?.setterId ?? null} currentId={playerId} t={t} />}
-      <RoomChat messages={messages} currentPlayerId={playerId} typingPlayers={typingPlayers} t={t} />
+      {chat ?? <RoomChat messages={messages} currentPlayerId={playerId} typingPlayers={typingPlayers} t={t} language={interfaceLanguage} />}
     </div>
   </main>
 }

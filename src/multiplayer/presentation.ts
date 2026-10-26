@@ -1,4 +1,8 @@
-import type { PlayerGameView, PublicPlayer, RoomStatus, RoundStatus } from '../../shared/protocol'
+import type { ChatMessage, PlayerGameView, PublicPlayer, RoomStatus, RoundStatus } from '../../shared/protocol'
+
+export function continuesChatGroup(previous: ChatMessage | undefined, message: ChatMessage) {
+  return Boolean(previous && previous.senderId === message.senderId && message.timestamp - previous.timestamp >= 0 && message.timestamp - previous.timestamp < 120_000)
+}
 
 export type MultiplayerPhase = Exclude<RoomStatus, 'active'> | RoundStatus | 'waiting'
 

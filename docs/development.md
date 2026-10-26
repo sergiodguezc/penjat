@@ -81,3 +81,34 @@ Validate production with `npm run build`, run relevant tests, then `npm start` a
 ### Other engines
 
 `scripts/browser-driver.mjs` (`BROWSER=firefox|chromium|webkit`) drives `npm run test:browser:multiplayer`, a real multi-player browser match. For its expected tie scenario, use a dedicated server with `DETERMINISTIC_FIRST_SETTER=1`. WebKit runs need WebKitWebDriver under an Xvfb screen large enough for 1920px windows, e.g. `xvfb-run -n 99 -s '-screen 0 2400x1600x24' WebKitWebDriver --port=4445`. Below 440px the driver loads the app in an exact-size iframe on a same-origin wrapper page; a cross-origin wrapper made WebKit ignore `focus()` inside the frame. A bare Xvfb has no window manager, so a resized MiniBrowser window loses focus and never matches `:focus-visible`; restore X input focus (e.g. with `xdotool`) before focus checks. Font generation is documented in `src/assets/fonts/README.md`.
+
+
+### Focused chat checks
+
+`npm run test:chat-inbox` covers live/history distinction, unread persistence, duplicate IDs, reconnect catch-up and truncated history. `npm run test:chat-sound` checks gesture activation and the sound cooldown. The existing multiplayer UI/localization/match-result tests cover the rendered structure.
+
+For browser QA, build the client (`npm run build:client`), start the dedicated server as above, and start a disposable Firefox BiDi or Chromium CDP instance using `scripts/browser-driver.mjs`'s setup instructions. Run:
+
+```sh
+TEST_SERVER_URL=http://127.0.0.1:3002 BROWSER=firefox npm run test:chat-browser
+```
+
+This focused suite uses real touch input to add/remove reactions, exercises null blur destinations and scroll/resize between pointer-down and activation, checks six consecutive short messages for density and non-overlapping targets, verifies reading older messages, draft persistence, full-screen phone dialog focus/Escape, simulated VisualViewport keyboard resizing, fixed rail allocation, desktop resizing, silent reload, disconnected catch-up, audio confirmation/delivery, burst cooldown and mute. It covers 320, 390, 768, 1100 and 1440px widths and captures base/seasonal screenshots in `/tmp/penjat-chat-validation/<engine>/`. It requires Firefox or Chromium touch support; WebKitGTK remains available for other suites but is not iPhone Safari. Real iPhone keyboard, browser chrome, VoiceOver and audio interruption checks remain manual. See `docs/multiplayer-chat-report.md` for this implementation's verification limits.
+
+
+### Real iPhone chat diagnostics (development only)
+
+Run the backend and frontend in separate terminals:
+
+```sh
+npm run dev:server
+npm run dev:vite-only -- --host 0.0.0.0
+```
+
+Open `http://<computer-LAN-IP>:5173/multijugador/?chatDebug=1` on the iPhone (use the network address Vite prints). For an invitation use `?sala=<ROOM-CODE>&chatDebug=1`. The flag must be present when loading the page; it stays active through room entry even if navigation removes the query. It has no effect in a production build.
+
+Open chat and expand **Diagnòstic del xat / Diagnóstico del chat**. **Prova el so / Probar sonido** tests the audio engine independently of message arrival, without enabling notification sounds. Enabling the normal sound toggle also plays a confirmation. A blocked, unsupported or timed-out activation displays an error rather than silently claiming success.
+
+Clear the log, tap a message's reaction icon, then tap one emoji. Expected stages are native `pointerdown`/`touchend`/`click`, `reaction:activate`, `reaction:send`, `reaction:broadcast`, `reaction:rendered` and `reaction:ack` (broadcast/render/ack order may vary). `picker:dismiss` before click points to cancellation; no emoji-target events points to hit-testing; activation without send shows a guard; an unsuccessful ack shows server/connection failure; broadcast without rendered points to UI synchronization. Logs also show native targets versus hit-tested targets, audio engine state, notification eligibility, scheduling and failures.
+
+Logs are a bounded 80-line memory-only buffer. They exclude message contents, player names, room codes and session credentials. Long-press the log to select/copy it, or capture a screenshot. Reproduce one action after clearing so its lifecycle stays in the buffer. Native iPhone keyboard/toolbars, VoiceOver and actual speaker output still require physical-device testing.

@@ -43,6 +43,12 @@ function common(page) {
   }
   page.settle = () => page.eval('document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))).then(() => true)')
   page.press = async (...keys) => { for (const key of keys) await page.key(key) }
+  page.tap = async (selector) => {
+    if (!page.touch) throw new Error(`Touch actions are unavailable for ${page.engine}`)
+    await page.eval(`(() => { const element = document.querySelector(${JSON.stringify(selector)}); const r = element.getBoundingClientRect(); if (!element.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2))) element.scrollIntoView({block:'nearest'}); return true })()`)
+    const point = await page.eval(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) } })()`)
+    await page.touch(point)
+  }
   return page
 }
 
@@ -68,6 +74,10 @@ async function firefox() {
           return JSON.parse(result.result.value)
         },
         viewport: (w, h) => command('browsingContext.setViewport', { context, viewport: { width: w, height: h } }),
+        touch: async ({ x, y }) => {
+          await command('browsingContext.activate', { context }); active = context
+          return command('input.performActions', { context, actions: [{ type: 'pointer', id: 'chat-touch', parameters: { pointerType: 'touch' }, actions: [{ type: 'pointerMove', x, y }, { type: 'pointerDown', button: 0 }, { type: 'pointerUp', button: 0 }] }] })
+        },
         async screenshot(file, { full = false } = {}) { writeFileSync(file, Buffer.from((await command('browsingContext.captureScreenshot', { context, origin: full ? 'document' : 'viewport' })).data, 'base64')) },
         // Several participants share one window as tabs: keys only reach the active tab, so activate it first.
         key: async (value, { shift = false } = {}) => { if (active !== context) { await command('browsingContext.activate', { context }); active = context } return command('input.performActions', { context, actions: [{ type: 'key', id: 'kbd', actions: [...(shift ? [{ type: 'keyDown', value: KEY.Shift }] : []), { type: 'keyDown', value }, { type: 'keyUp', value }, ...(shift ? [{ type: 'keyUp', value: KEY.Shift }] : [])] }] }) },
@@ -123,6 +133,11 @@ async function chromium() {
           return JSON.parse(result.result.value)
         },
         viewport,
+        touch: async ({ x, y }) => {
+          await send('Page.bringToFront'); front = targetId
+          await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
+          await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+        },
         async screenshot(file, { full = false } = {}) { writeFileSync(file, Buffer.from((await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: full })).data, 'base64')) },
         async key(value, { shift = false } = {}) {
           if (front !== targetId) { await send('Page.bringToFront'); front = targetId }

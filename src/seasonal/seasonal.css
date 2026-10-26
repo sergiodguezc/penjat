@@ -49,7 +49,7 @@
 :root[data-season="spooky"] .home-band { color: var(--ink); background: var(--paper-deep); border-block: 1px solid var(--border); }
 :root[data-season="spooky"] :is(.mode-card--mar, .mode-card--safra, .mode-card--oliva) > a { color: var(--ink); background: var(--surface); }
 :root[data-season="spooky"] :is(.page-eyebrow--mar, .page-eyebrow--magrana) { color: var(--paper); }
-:root[data-season="spooky"] :is(.page-eyebrow--safra, .page-eyebrow--oliva, .unit-pill, .player-list li > span, .daily-entry .mode-icon, .quick-card-tag, .forgive-action, .is-leader .standing-rank) { color: var(--paper); }
+:root[data-season="spooky"] :is(.page-eyebrow--safra, .page-eyebrow--oliva, .unit-pill, .player-list li > span, .daily-entry .mode-icon, .quick-card-tag, .forgive-action, .is-leader .standing-rank, .chat-badge) { color: var(--paper); }
 :root[data-season="spooky"] .room-code { background: var(--paper-deep); }
 :root[data-season="spooky"] .quick-card:hover { background: var(--surface); }
 :root[data-season="spooky"] :is(.mode-art-grid i, .mode-art-code span, .quick-play-badge) { border-color: var(--border); }

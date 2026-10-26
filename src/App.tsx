@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Language } from '../shared/game'
-import type { ChatMessage, PlayerGameView } from '../shared/protocol'
+import type { PlayerGameView } from '../shared/protocol'
+import { useChatInbox } from './multiplayer/useChatInbox'
+import { RoomChat } from './components/RoomChat'
+import { multiplayerTranslations } from './multiplayer/i18n'
 import { Modal } from './components/Modal'
 import { GamePage } from './pages/GamePage'
 import { HomePage } from './pages/HomePage'
@@ -96,7 +99,10 @@ function App() {
     return stored === 'es' || stored === 'ca' ? stored : 'ca'
   })
   const [room, setRoom] = useState<PlayerGameView | null>(null)
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const { state: chatState, history: chatHistory, message: chatMessage, reaction: chatReaction, markRead: markChatRead, notificationHandled, reset: resetChat } = useChatInbox()
+  const messages = chatState.messages
+  const [chatDraft, setChatDraft] = useState('')
+  const [chatOpen, setChatOpen] = useState(false)
   const [playerId, setPlayerId] = useState(() => loadRoomSession()?.playerId ?? '')
   const [notice, setNotice] = useState('')
   // Restoring a stored room starts before the first paint, so a refresh shows the reconnecting state, not the home page.
@@ -124,11 +130,11 @@ function App() {
       setRoom(state); setGameLanguage(state.gameLanguage); localStorage.setItem('hangman-game-language', state.gameLanguage)
     }
     socket.on('room:state', update)
-    const history = (chatMessages: ChatMessage[]) => setMessages(chatMessages)
-    const message = (chatMessage: ChatMessage) => setMessages((current) => [...current, chatMessage].slice(-50))
+    const history = chatHistory
+    const message = chatMessage
     socket.on('chat:history', history)
     socket.on('chat:message', message)
-    const reaction = ({ messageId, reactions }: { messageId: string; reactions: ChatMessage['reactions'] }) => setMessages((current) => current.map((item) => item.id === messageId ? { ...item, reactions } : item))
+    const reaction = chatReaction
     socket.on('chat:reaction-updated', reaction)
     const typing = (payload: { playerId: string; playerName: string; isTyping: boolean }) => setTypingPlayers((current) => {
       const next = { ...current }
@@ -141,10 +147,10 @@ function App() {
       socket, invitation: readInvitationCode, timeoutMs: REQUEST_TIMEOUT_MS,
       onStatus: (status) => {
         setRestoreStatus(status)
-        if (status === 'replaced' || status === 'left') { setRoom(null); setMessages([]); setTypingPlayers({}) }
+        if (status === 'replaced' || status === 'left') { setRoom(null); resetChat(); setChatDraft(''); setChatOpen(false); setTypingPlayers({}) }
       },
       onRestored: (session, view) => { setPlayerId(session.playerId); setNotice(''); setRoom(view) },
-      onInvalid: (error) => { setPlayerId(''); setRoom(null); setMessages([]); setTypingPlayers({}); setNotice(error) },
+      onInvalid: (error) => { setPlayerId(''); setRoom(null); resetChat(); setChatDraft(''); setChatOpen(false); setTypingPlayers({}); setNotice(error) },
     })
     restorer.current = roomRestorer
     // Returning to a backgrounded tab or regaining the network: bring a dropped connection back now; `connect` resumes.
@@ -160,7 +166,7 @@ function App() {
       roomRestorer.dispose()
       if (restorer.current === roomRestorer) restorer.current = null
     }
-  }, [])
+  }, [chatHistory, chatMessage, chatReaction, resetChat])
 
   // A tab that lost its seat reflects what other tabs store next (a new room to continue, or none).
   const [, setStorageVersion] = useState(0)
@@ -226,7 +232,8 @@ function App() {
     restorer.current?.forget()
     setPlayerId('')
     setRoom(null)
-    setMessages([])
+    resetChat()
+    setChatDraft(''); setChatOpen(false)
     setTypingPlayers({})
   }
   const leave = (destination: Route = '/multijugador/') => {
@@ -235,7 +242,8 @@ function App() {
   }
   const enterRoom = (view: PlayerGameView, id: string) => {
     restorer.current?.reset()
-    setMessages([])
+    setChatDraft(''); setChatOpen(false)
+    resetChat()
     setPlayerId(id)
     setNotice('')
     setRoom(view)
@@ -310,7 +318,7 @@ function App() {
     setLearningUnit(null)
     const session = loadRoomSession()
     if (session && !shouldResumeRoomSession(session.roomCode, readInvitationCode())) {
-      setRoom(null); setMessages([]); setTypingPlayers({}); setPlayerId(''); setNotice('')
+      setRoom(null); resetChat(); setChatDraft(''); setChatOpen(false); setTypingPlayers({}); setPlayerId(''); setNotice('')
       socket.disconnect().connect()
     }
   }
@@ -330,8 +338,9 @@ function App() {
   if (!room && view === 'multiplayer') return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} invitedRoomCode={invitedRoomCode} onEnter={enterRoom} onResume={retryRestore} onLearn={startLearning} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="multiplayer" />{footer}{exitDialog}</>
   if (!room && view === 'help') return <>{header()}<HowToPlayPage language={interfaceLanguage} onNavigate={navigate} />{footer}{exitDialog}</>
   if (!room) return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} onEnter={enterRoom} onResume={retryRestore} onLearn={startLearning} onDaily={startDaily} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="home" />{footer}{exitDialog}</>
-  if (room.roomStatus === 'waiting') return <>{header({ label: navigationCopy.leaveRoom, onExit: () => leave() })}{connectionNotice}<LobbyPage state={room} interfaceLanguage={interfaceLanguage} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
-  return <>{header({ label: room.roomStatus === 'active' ? navigationCopy.leaveMatch : navigationCopy.leaveRoom, onExit: () => requestConfirmedExit(() => leave(), room.roomStatus === 'active' ? 'game' : null) })}{connectionNotice}<GamePage onLeave={() => leave()} onExitToMenu={() => leave('/')} state={room} interfaceLanguage={interfaceLanguage} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
+  const chat = <RoomChat messages={messages} currentPlayerId={playerId} typingPlayers={Object.values(typingPlayers)} t={multiplayerTranslations[interfaceLanguage]} language={interfaceLanguage} draft={chatDraft} onDraftChange={setChatDraft} mobileOpen={chatOpen} onMobileOpenChange={setChatOpen} enabled={restoreStatus === 'idle'} unreadIds={chatState.unreadIds} olderUnread={chatState.olderUnread} notification={chatState.notification} onRead={markChatRead} onNotificationHandled={notificationHandled} />
+  if (room.roomStatus === 'waiting') return <>{header({ label: navigationCopy.leaveRoom, onExit: () => leave() })}{connectionNotice}<LobbyPage state={room} interfaceLanguage={interfaceLanguage} chat={chat} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
+  return <>{header({ label: room.roomStatus === 'active' ? navigationCopy.leaveMatch : navigationCopy.leaveRoom, onExit: () => requestConfirmedExit(() => leave(), room.roomStatus === 'active' ? 'game' : null) })}{connectionNotice}<GamePage onLeave={() => leave()} onExitToMenu={() => leave('/')} state={room} interfaceLanguage={interfaceLanguage} chat={chat} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
 }
 
 export default App

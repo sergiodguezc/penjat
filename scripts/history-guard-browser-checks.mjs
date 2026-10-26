@@ -3,9 +3,16 @@ import assert from 'node:assert/strict'
 // QA-01: browser Back/Forward follow the same exit guard as header links. A guarded move is undone while the dialog is
 // open, so the dialog stays with the game it protects: Cancel keeps playing, Confirm performs the move.
 export async function checkHistoryGuard({ context, command, evaluate, waitFor, navigate }) {
-  const back = () => command('browsingContext.traverseHistory', { context, delta: -1 })
-  const forward = () => command('browsingContext.traverseHistory', { context, delta: 1 })
   const dialogOpen = "document.querySelector('.exit-confirmation-dialog[open]') !== null"
+  const traverse = async (delta) => {
+    try { await command('browsingContext.traverseHistory', { context, delta }) }
+    catch (error) {
+      // Firefox 158 can time out when the exit guard immediately undoes the requested history move.
+      if (!error.message.includes('History was not updated for index') || !await evaluate(context, dialogOpen)) throw error
+    }
+  }
+  const back = () => traverse(-1)
+  const forward = () => traverse(1)
   const noDialog = "document.querySelector('.exit-confirmation-dialog') === null"
   const guessed = "document.querySelectorAll('.keyboard button:disabled').length"
   const cancel = () => evaluate(context, "document.querySelector('.exit-confirmation-dialog .secondary-action').click()")
