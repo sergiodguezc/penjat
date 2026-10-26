@@ -11,6 +11,8 @@ import { LobbyPage } from './pages/LobbyPage'
 import { LearningPage } from './pages/LearningPage'
 import { DailyChallengePage } from './pages/DailyChallengePage'
 import { HowToPlayPage } from './pages/HowToPlayPage'
+import { NotFoundPage } from './pages/NotFoundPage'
+import { notFoundTranslations } from '../shared/notFound'
 import { SiteHeader } from './components/SiteHeader'
 import { SiteFooter } from './components/SiteFooter'
 import { INTERFACE_LANGUAGE_STORAGE_KEY, readInterfaceLanguage } from './localization'
@@ -82,10 +84,12 @@ const routeDescriptions: Record<Route, { mode: Mode; copy: Record<Language, Page
   },
 }
 
+const notFoundPage: { mode: Mode; copy: Record<Language, PageCopy> } = { mode: 'home', copy: notFoundTranslations }
+
 function App() {
-  const [route, setRoute] = useState<Route>(() => {
+  const [route, setRoute] = useState<Route | null>(() => {
     const current = normalizeRoute(window.location.pathname)
-    window.history.replaceState({ penjatIndex: historyIndex(window.history.state) ?? 0 }, '', `${current}${window.location.search}${window.location.hash}`)
+    window.history.replaceState({ penjatIndex: historyIndex(window.history.state) ?? 0 }, '', `${current ?? window.location.pathname}${window.location.search}${window.location.hash}`)
     return current
   })
   // The shown history entry: popstate compares against it to undo a guarded Back/Forward until the player decides.
@@ -112,7 +116,7 @@ function App() {
   })
   const restorer = useRef<RoomRestorer | null>(null)
   const [typingPlayers, setTypingPlayers] = useState<Record<string, { playerId: string; playerName: string }>>({})
-  const [view, setView] = useState<Mode>(() => routeDescriptions[normalizeRoute(window.location.pathname)].mode)
+  const [view, setView] = useState<Mode>(() => route ? routeDescriptions[route].mode : 'home')
   // The open learning unit; null shows the unit list. A refresh reopens it; any page change returns to the list (progress is saved).
   const [learningUnit, setLearningUnit] = useState<string | null>(() => {
     try { return normalizeRoute(window.location.pathname) === '/aprendre/' ? sessionStorage.getItem(LEARNING_UNIT_KEY) : null } catch { return null }
@@ -120,7 +124,7 @@ function App() {
   const [dailyGameActive, setDailyGameActive] = useState(false)
   const [invitedRoomCode, setInvitedRoomCode] = useState<InvitationCode>(() => readInvitationCode())
   const [pendingExit, setPendingExit] = useState<{ kind: ExitKind; exit: () => void } | null>(null)
-  const page = routeDescriptions[route]
+  const page = route ? routeDescriptions[route] : notFoundPage
 
   useEffect(() => {
     const onPopState = () => popStateHandler.current()
@@ -185,7 +189,7 @@ function App() {
     const copy = page.copy[interfaceLanguage]
     document.documentElement.lang = interfaceLanguage
     document.title = copy.title
-    const canonical = new URL(canonicalPath(route), PUBLIC_SITE_ORIGIN).href
+    const canonical = route ? new URL(canonicalPath(route), PUBLIC_SITE_ORIGIN).href : null
     const description = copy.description
     const setMeta = (selector: string, attrs: Record<string, string>) => {
       let element = document.head.querySelector<HTMLMetaElement | HTMLLinkElement>(selector)
@@ -201,23 +205,26 @@ function App() {
     setMeta('meta[property="og:site_name"]', { property: 'og:site_name', content: 'Penjat' })
     setMeta('meta[property="og:title"]', { property: 'og:title', content: copy.socialTitle ?? copy.title })
     setMeta('meta[property="og:description"]', { property: 'og:description', content: copy.socialDescription ?? description })
-    setMeta('meta[property="og:url"]', { property: 'og:url', content: canonical })
+    if (canonical) setMeta('meta[property="og:url"]', { property: 'og:url', content: canonical })
+    else removeIfPresent('meta[property="og:url"]')
     setMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary' })
     setMeta('meta[name="twitter:title"]', { name: 'twitter:title', content: copy.socialTitle ?? copy.title })
     setMeta('meta[name="twitter:description"]', { name: 'twitter:description', content: copy.socialDescription ?? description })
-    setMeta('link[rel="canonical"]', { rel: 'canonical', href: canonical })
+    if (canonical) setMeta('link[rel="canonical"]', { rel: 'canonical', href: canonical })
+    else removeIfPresent('link[rel="canonical"]')
     removeIfPresent('link[rel="alternate"][hreflang]')
   }, [interfaceLanguage, page, route])
 
-  const goTo = (next: Route, options: { replace?: boolean } = {}) => {
+  const goTo = (next: Route | null, options: { replace?: boolean; pathname?: string } = {}) => {
+    const pathname = next ?? options.pathname ?? window.location.pathname
     if (next !== route || window.location.search) {
       const method = options.replace ? 'replaceState' : 'pushState'
-      window.history[method]({ penjatIndex: options.replace ? historyPosition.current : ++historyPosition.current }, '', next)
+      window.history[method]({ penjatIndex: options.replace ? historyPosition.current : ++historyPosition.current }, '', pathname)
     }
-    shownUrl.current = next
+    shownUrl.current = pathname
     allowHistoryMove.current = false
     setRoute(next)
-    setView(routeDescriptions[next].mode)
+    setView(next ? routeDescriptions[next].mode : 'home')
     setInvitedRoomCode(null)
     setLearningUnit(null)
   }
@@ -295,6 +302,7 @@ function App() {
   const handlePopState = () => {
     const targetIndex = historyIndex(window.history.state)
     const next = normalizeRoute(window.location.pathname)
+    const nextPath = next ?? window.location.pathname
     const move = resolveHistoryMove({ currentIndex: historyPosition.current, targetIndex, currentUrl: shownUrl.current,
       targetUrl: `${window.location.pathname}${window.location.search}`, guarded: exitGuard() !== null, allowed: allowHistoryMove.current })
     allowHistoryMove.current = false
@@ -303,17 +311,17 @@ function App() {
       const { delta } = move
       if (delta) window.history.go(-delta)
       else window.history.pushState({ penjatIndex: ++historyPosition.current }, '', shownUrl.current)
-      setPendingExit({ kind: exitGuard() ?? 'game', exit: delta ? () => { allowHistoryMove.current = true; window.history.go(delta) } : () => room || restoringRoom ? leave(next) : goTo(next) })
+      setPendingExit({ kind: exitGuard() ?? 'game', exit: delta ? () => { allowHistoryMove.current = true; window.history.go(delta) } : () => { if (room || restoringRoom) leaveRoom(); goTo(next, { replace: Boolean(room || restoringRoom), pathname: nextPath }) } })
       return
     }
     setPendingExit(null)
     historyPosition.current = targetIndex ?? historyPosition.current + 1
-    window.history.replaceState({ penjatIndex: historyPosition.current }, '', `${next}${window.location.search}${window.location.hash}`)
-    shownUrl.current = `${next}${window.location.search}`
+    window.history.replaceState({ penjatIndex: historyPosition.current }, '', `${nextPath}${window.location.search}${window.location.hash}`)
+    shownUrl.current = `${nextPath}${window.location.search}`
     if (room || restoringRoom) leaveRoom()
     if (lostSeat) setRestoreStatus('idle')
     setRoute(next)
-    setView(routeDescriptions[next].mode)
+    setView(next ? routeDescriptions[next].mode : 'home')
     setInvitedRoomCode(next === '/multijugador/' ? readInvitationCode() : null)
     setLearningUnit(null)
     const session = loadRoomSession()
@@ -324,13 +332,14 @@ function App() {
   }
   useEffect(() => { popStateHandler.current = handlePopState })
   const exitDialog = pendingExit ? <ExitConfirmationDialog language={interfaceLanguage} kind={pendingExit.kind} onCancel={cancelExit} onConfirm={confirmExit} /> : null
-  const section = room || restoreStatus !== 'idle' ? 'multiplayer' : view
+  const section = !route ? undefined : room || restoreStatus !== 'idle' ? 'multiplayer' : view
   const header = (exit?: { label: string; onExit: () => void }) => <SiteHeader language={interfaceLanguage} current={section} onLanguage={changeInterfaceLanguage}
     onNavigate={navigate} exit={exit} sticky={!room && (view === 'home' || view === 'help' || view === 'multiplayer')} />
   const footer = <SiteFooter language={interfaceLanguage} onNavigate={navigate} />
 
   const retryRestore = () => restorer.current?.retry()
   const connectionNotice = <SelfConnectionNotice language={interfaceLanguage} status={restoreStatus} onRetry={retryRestore} />
+  if (!route) return <>{header()}<NotFoundPage language={interfaceLanguage} onHome={() => navigate('/')} />{footer}{exitDialog}</>
   if (!room && restoreStatus !== 'idle') return <>{header()}<RoomRestoreNotice language={interfaceLanguage} status={restoreStatus} roomCode={loadRoomSession()?.roomCode ?? null} lostToken={restorer.current?.lostToken() ?? null}
     onRetry={retryRestore} onLeave={() => leave()} onDismiss={() => { setRestoreStatus('idle'); goTo('/multijugador/') }} />{exitDialog}</>
   if (!room && view === 'learning') return <>{header(learningUnit ? { label: navigationCopy.backToUnits, onExit: () => setLearningUnit(null) } : undefined)}<LearningPage language={interfaceLanguage} unitId={learningUnit} onUnit={setLearningUnit} />{exitDialog}</>

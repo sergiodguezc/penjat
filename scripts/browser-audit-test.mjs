@@ -5,7 +5,7 @@ import { io } from 'socket.io-client'
 import { checkP0Dialogs, checkP0Chat, checkP0Terminal, checkP0EmptyChat } from './p0-browser-checks.mjs'
 import { checkMatchResultsFlow } from './match-results-browser-checks.mjs'
 import { checkResponsiveScope } from './responsive-scope-checks.mjs'
-import { checkHomeNavigation, checkHomeLayout, checkSetupEmphasis, homeMetrics } from './homepage-browser-checks.mjs'
+import { checkHomeNavigation, checkHomeLayout, checkSetupEmphasis, checkNotFoundNavigation, homeMetrics } from './homepage-browser-checks.mjs'
 import { checkSiteHeader } from './header-browser-checks.mjs'
 import { checkHistoryGuard } from './history-guard-browser-checks.mjs'
 import { checkReconnect } from './reconnect-browser-checks.mjs'
@@ -73,6 +73,7 @@ try {
   const profile = (await command('browser.createUserContext')).userContext
   const isolatedProfile = (await command('browser.createUserContext')).userContext
   const home = await newTab(isolatedProfile)
+  await checkNotFoundNavigation({ context: home, command, evaluate, waitFor, navigate })
   await checkP0Dialogs({context:home, command, evaluate, waitFor, navigate})
   await checkHomeNavigation({ context: home, command, evaluate, waitFor, navigate })
   await checkSiteHeader({ context: home, command, evaluate, waitFor, navigate })

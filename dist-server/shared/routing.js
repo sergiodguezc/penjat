@@ -1,0 +1,13 @@
+export const publicRoutes = ['/', '/multijugador/', '/aprendre/', '/paraula-del-dia/', '/com-es-juga/'];
+export function normalizeRoute(pathname) {
+    const trimmed = pathname.replace(/\/+$/, '') || '/';
+    const withoutLegacyLocale = trimmed === '/es'
+        ? '/'
+        : trimmed === '/es/como-jugar'
+            ? '/com-es-juga'
+            : trimmed.startsWith('/es/')
+                ? trimmed.slice(3) || '/'
+                : trimmed;
+    const candidate = withoutLegacyLocale === '/' ? '/' : `${withoutLegacyLocale}/`;
+    return publicRoutes.includes(candidate) ? candidate : null;
+}

@@ -254,6 +254,8 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
 /* Multiplayer entry: one compact card on the same warm surface as Penjat's other cards. A shared name, the red
    "create" action, then joining as the quieter outlined path, which reveals the room code and its "enter" in place. */
 .home-page--multiplayer:not(.home-page--invitation) .page-head, .setup { width: min(100%, 34rem); }
+.multiplayer-about { width: min(100%, 34rem); margin: var(--space-5) auto 0; color: var(--text-muted); font-size: var(--text-body); line-height: var(--leading-body); }
+.multiplayer-about p { margin: 0; }
 .setup { display: grid; gap: var(--space-4); padding: var(--space-8); border: 2px solid var(--ink); border-radius: var(--radius-card); color: var(--ink); background: var(--surface); box-shadow: var(--shadow-ink); }
 .entry-create, .entry-join { display: grid; gap: var(--space-4); min-width: 0; }
 .setup-hint { margin: calc(var(--space-2) * -1) 0 0; color: var(--text-muted); font-size: var(--text-meta); line-height: var(--leading-ui); text-align: center; }

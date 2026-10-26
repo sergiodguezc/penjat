@@ -210,6 +210,17 @@ export async function checkSetupEmphasis({ context, command, evaluate, waitFor, 
       assert.equal(m.overflow, false, `Entry overflow at ${width}`)
       assert.equal(m.inputs, 1, 'one shared name field')
       assert.equal(m.code, null, 'the code appears only after opening join')
+      for (const theme of ['', 'spooky']) {
+        await evaluate(context, `document.documentElement.dataset.season = '${theme}'`)
+        assert.equal(await evaluate(context, `(() => {
+          const copy = document.querySelector('.multiplayer-about'), link = copy.querySelector('a');
+          return copy.getBoundingClientRect().top >= document.querySelector('.setup').getBoundingClientRect().bottom
+            && copy.getBoundingClientRect().width <= innerWidth && getComputedStyle(copy).display !== 'none'
+            && copy.innerText.includes('${language === 'ca' ? 'penjat multijugador online' : 'ahorcado online'}')
+            && copy.innerText.includes('${language === 'ca' ? 'sense registrar-te' : 'sin registrarte'}')
+            && link.getAttribute('href') === '/com-es-juga' && link.getBoundingClientRect().height >= 44;
+        })()`), true, `visible localized copy and crawlable help link in ${theme || 'normal'} at ${width}`)
+      }
       assert.ok(inside(m.name, m.panel) && inside(m.create, m.panel) && inside(m.toggle, m.panel) && m.name.height >= 44, `controls inside the panel at ${width}`)
       assert.ok(m.name.bottom < m.create.y && m.create.bottom <= m.hint.y && m.hint.bottom <= m.toggle.y, `name, Create, hint, join in order at ${width}`)
       if (width >= 390) assert.ok(m.toggle.bottom <= height, `both actions in the first screen at ${width}`)
@@ -220,6 +231,8 @@ export async function checkSetupEmphasis({ context, command, evaluate, waitFor, 
       assert.equal(await evaluate(context, "document.querySelector('.setup-name input').value"), 'Desada', 'name kept when joining')
       assert.ok(m.toggle === null && inside(m.code, m.panel) && inside(m.enter, m.panel) && Math.abs(m.code.y - m.enter.y) <= 2 && m.code.height >= 44, `code and Entra on one row inside the panel at ${width}`)
     }
+    await evaluate(context, "document.querySelector('.multiplayer-about a').click()")
+    await waitFor(context, "location.pathname === '/com-es-juga/' && document.querySelector('.howto-page') !== null")
     // Keyboard (desktop): name, Create, then the join action; Enter on it moves focus to the code.
     await command('browsingContext.setViewport', { context, viewport: { width: 1440, height: 900 } })
     await navigate(context, '/multijugador/')
@@ -265,4 +278,36 @@ export async function checkSetupEmphasis({ context, command, evaluate, waitFor, 
   await navigate(context, '/')
   await evaluate(context, "localStorage.setItem('hangman-interface-language', 'ca'); localStorage.removeItem('hangman-name')")
   console.log('Multiplayer entry passed in CA/ES: one panel with a shared name at 1440/768/390/320; join reveals code and Entra in place (name kept, focus on code); keyboard order; name and code validation; create and join submitted right after load.')
+}
+
+export async function checkNotFoundNavigation({ context, command, evaluate, waitFor, navigate }) {
+  for (const language of ['ca', 'es']) {
+    await navigate(context, '/')
+    await evaluate(context, `localStorage.setItem('hangman-interface-language', '${language}')`)
+    const path = '/missing-page?keep=1#test'
+    await navigate(context, path)
+    await waitFor(context, "document.querySelector('.not-found-page') !== null")
+    assert.equal(await evaluate(context, 'location.pathname + location.search + location.hash'), path, 'unknown addresses are not rewritten to home')
+    assert.equal(await evaluate(context, 'document.title'), language === 'ca' ? 'Pàgina no trobada | Penjat' : 'Página no encontrada | Penjat')
+    assert.equal(await evaluate(context, 'document.documentElement.lang'), language)
+    assert.equal(await evaluate(context, "document.querySelector('link[rel=canonical]')"), null)
+    assert.equal(await evaluate(context, "document.querySelector('[aria-current=page]')"), null)
+    for (const width of [320, 390, 1440]) {
+      await command('browsingContext.setViewport', { context, viewport: { width, height: 844 } })
+      assert.equal(await evaluate(context, 'document.documentElement.scrollWidth > innerWidth'), false)
+    }
+    await evaluate(context, "document.querySelector('.not-found-page a[href=\"/\"]').click()")
+    await waitFor(context, "location.pathname === '/' && document.querySelector('.home-modes') !== null")
+    await command('browsingContext.traverseHistory', { context, delta: -1 })
+    await waitFor(context, "location.pathname === '/missing-page' && document.querySelector('.not-found-page') !== null")
+    assert.equal(await evaluate(context, "document.querySelector('link[rel=canonical]')"), null)
+    await command('browsingContext.traverseHistory', { context, delta: 1 })
+    await waitFor(context, "location.pathname === '/' && document.querySelector('.home-modes') !== null")
+    assert.equal(await evaluate(context, "document.querySelector('link[rel=canonical]').href"), 'https://penjat.cat/')
+    await evaluate(context, "history.pushState({}, '', '/another-missing'); window.dispatchEvent(new PopStateEvent('popstate'))")
+    await waitFor(context, "location.pathname === '/another-missing' && document.querySelector('.not-found-page') !== null")
+  }
+  await navigate(context, '/')
+  await evaluate(context, "localStorage.setItem('hangman-interface-language', 'ca')")
+  console.log('Not-found navigation passed: CA/ES, original URL, no canonical, home recovery, Back/Forward and mobile reflow.')
 }

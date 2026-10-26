@@ -268,6 +268,10 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
         </form> : <button type="button" className="secondary-action entry-join-toggle" onClick={openJoin}>{t.joinRoom}</button>}
         {(error || notice) && <p className="form-error" role="alert">{error || errorMessage(notice!, t)}</p>}
       </section>
+      <div className="multiplayer-about">
+        <p>{t.multiplayerDescription}</p>
+        <a className="howto-link" href="/com-es-juga" onClick={route(onHelp)}>{t.multiplayerInstructions}</a>
+      </div>
       {switchDialog}
     </main>
   }

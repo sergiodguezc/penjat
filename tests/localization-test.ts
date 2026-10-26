@@ -4,6 +4,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { INTERFACE_LANGUAGE_STORAGE_KEY, readInterfaceLanguage } from '../src/localization'
 import { HowToPlayPage } from '../src/pages/HowToPlayPage'
 import { normalizeRoute } from '../src/routing'
+import { publicRoutes } from '../shared/routing'
+import { notFoundTranslations } from '../shared/notFound'
+import { NotFoundPage } from '../src/pages/NotFoundPage'
 import { HomePage } from '../src/pages/HomePage'
 import { getDailyChallenge } from '../src/daily/challenge'
 import { dailyTranslations } from '../src/daily/i18n'
@@ -29,6 +32,21 @@ assert.equal(normalizeRoute('/es'), '/')
 assert.equal(normalizeRoute('/es/'), '/')
 assert.equal(normalizeRoute('/es/multijugador/'), '/multijugador/')
 assert.equal(normalizeRoute('/es/como-jugar/'), '/com-es-juga/')
+for (const route of publicRoutes) {
+  assert.equal(normalizeRoute(route), route)
+  assert.equal(normalizeRoute(route.replace(/\/$/, '') || '/'), route)
+  assert.equal(normalizeRoute(`${route}///`), route)
+}
+for (const path of ['/missing', '/missing/', '/es/missing', '/assets/missing.js', '/api/missing', '/APRendre', '/aprendre/extra']) assert.equal(normalizeRoute(path), null, path)
+for (const language of ['ca', 'es'] as const) {
+  const t = notFoundTranslations[language]
+  const html = renderToStaticMarkup(React.createElement(NotFoundPage, { language, onHome() {} }))
+  assert.ok(html.includes(`<main class="home-page not-found-page" lang="${language}">`))
+  assert.ok(html.includes(`<h1>${t.heading}</h1>`))
+  assert.ok(html.includes(t.description))
+  assert.ok(html.includes(`href="/">${t.home}</a>`))
+}
+assert.deepEqual(Object.keys(notFoundTranslations.ca), Object.keys(notFoundTranslations.es))
 
 const howToCa = renderToStaticMarkup(React.createElement(HowToPlayPage, { language: 'ca' }))
 const howToEs = renderToStaticMarkup(React.createElement(HowToPlayPage, { language: 'es' }))
@@ -128,6 +146,14 @@ try {
       onEnter() {}, onLearn() {}, onMultiplayer() {}, onHelp() {},
     }))
     const setup = html.match(/<section class="setup"[^>]*>.*<\/section>/)![0]
+    const expectedDescription = language === 'ca'
+      ? 'Juga al penjat multijugador online en català o castellà amb 2–10 persones. Crea una sala privada, comparteix el codi i juga amb els amics sense registrar-te.'
+      : 'Juega al ahorcado online en catalán o español con 2–10 personas. Crea una sala privada, comparte el código y juega con amigos sin registrarte.'
+    assert.equal(t.multiplayerDescription, expectedDescription)
+    assert.ok(html.includes(`<p>${expectedDescription}</p>`))
+    assert.ok(html.includes(`<a class="howto-link" href="/com-es-juga">${t.multiplayerInstructions}</a>`))
+    assert.ok(html.indexOf('class="setup"') < html.indexOf('class="multiplayer-about"'), 'controls stay before the explanatory copy')
+    assert.equal(html.match(/<h1>(.*?)<\/h1>/)![1].replace(/<[^>]+>/g, ''), `${t.setupTitle} ${t.setupAccent}`)
     assert.ok(setup.startsWith(`<section class="setup" aria-label="${t.multiplayerMode}">`))
     assert.equal((setup.match(/<input/g) ?? []).length, 1, 'one shared name field')
     assert.ok(setup.indexOf(`<label class="setup-name">${t.name}<input`) < setup.indexOf(`>${t.createRoom}</button>`), 'name, then Create')

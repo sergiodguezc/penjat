@@ -1,6 +1,8 @@
 import type { Language } from '../../shared/game'
 
 const es = {
+  multiplayerDescription: 'Juega al ahorcado online en catalán o español con 2–10 personas. Crea una sala privada, comparte el código y juega con amigos sin registrarte.',
+  multiplayerInstructions: 'Cómo jugar al ahorcado multijugador',
   invitationTakesPriority: 'Has abierto una invitación a otra sala. La sala anterior no se retomará automáticamente.',
   title: 'Penjat', subtitle: 'El clásico juego de palabras, ahora para todos',
   matchTitle: 'Partida multijugador', multiplayerMode: 'Multijugador', setupTitle: 'Juega con tu grupo.', setupAccent: 'Gana quien acierta.', createTitle: 'Crea una sala', createHint: 'De 2 a 10 jugadores. Las reglas se eligen en la sala.', joinTitle: 'Únete', joinHint: 'Escribe el código que te han pasado.', name: 'Tu nombre',   namePlaceholder: 'Escribe tu nombre', language: 'Idioma', gameLanguage: 'Idioma de la partida', create: 'Crear partida', join: 'Unirse a partida',
@@ -112,6 +114,8 @@ const es = {
 }
 
 const ca: typeof es = {
+  multiplayerDescription: 'Juga al penjat multijugador online en català o castellà amb 2–10 persones. Crea una sala privada, comparteix el codi i juga amb els amics sense registrar-te.',
+  multiplayerInstructions: 'Com es juga al penjat multijugador',
   invitationTakesPriority: 'Has obert una invitació a una altra sala. La sala anterior no es reprendrà automàticament.',
   title: 'Penjat', subtitle: 'El joc de paraules de sempre, ara per a tothom',
   matchTitle: 'Partida multijugador', multiplayerMode: 'Multijugador', setupTitle: 'Juga amb la colla.', setupAccent: 'Guanya qui encerta.', createTitle: 'Crea una sala', createHint: 'De 2 a 10 jugadors. Les regles es trien a la sala.', joinTitle: 'Uneix-te', joinHint: 'Escriu el codi que t’han passat.', name: 'El teu nom',   namePlaceholder: 'Escriu el teu nom', language: 'Llengua', gameLanguage: 'Idioma de la partida', create: 'Crea una partida', join: "Uneix-te a una partida",

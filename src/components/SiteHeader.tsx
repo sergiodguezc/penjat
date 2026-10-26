@@ -8,7 +8,7 @@ import { LanguageSelector } from './LanguageSelector'
 
 type Props = {
   language: Language
-  current: Section
+  current?: Section
   onLanguage: (language: Language) => void
   onNavigate: (route: Route) => void
   /** Contextual exit (leave the room or match, end the learning session); its label names the consequence. */

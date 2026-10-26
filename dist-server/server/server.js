@@ -5,6 +5,8 @@ import { Server } from 'socket.io';
 import { ALPHABETS } from '../shared/game.js';
 import { DEFAULT_VOLTES, SUPPORTED_VOLTES } from '../shared/protocol.js';
 import { GameManager } from './game/GameManager.js';
+import { normalizeRoute } from '../shared/routing.js';
+import { notFoundTranslations } from '../shared/notFound.js';
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN;
@@ -48,7 +50,8 @@ const routeMetadata = {
     },
 };
 const httpServer = createServer(async (request, response) => {
-    const url = new URL(request.url || '/', 'http://localhost');
+    // Origin-form paths beginning with // are paths, not protocol-relative hostnames.
+    const url = new URL(request.url?.startsWith('/') ? `http://localhost${request.url}` : request.url || '/', 'http://localhost');
     if (url.pathname.startsWith('/socket.io/'))
         return;
     response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -93,23 +96,31 @@ const httpServer = createServer(async (request, response) => {
         if (filePath !== frontendDist && !filePath.startsWith(`${frontendDist}${sep}`))
             throw new Error('Invalid path');
         const fileStats = await stat(filePath).catch(() => null);
-        if (!fileStats?.isFile())
+        const routeKey = normalizeRoute(url.pathname);
+        if (!fileStats?.isFile()) {
+            const extension = extname(requestedPath).toLowerCase();
+            if (!routeKey && ((extension && extension !== '.html') || requestedPath.startsWith('/assets/') || requestedPath.startsWith('/api/'))) {
+                response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
+                response.end(request.method === 'HEAD' ? undefined : 'Not found');
+                return;
+            }
             filePath = resolve(frontendDist, 'index.html');
+        }
         const body = await readFile(filePath);
         const isAsset = filePath.includes(`${sep}assets${sep}`);
-        const routeKey = normalizeMetadataRoute(url.pathname);
-        const responseBody = extname(filePath).toLowerCase() === '.html' && routeMetadata[routeKey]
-            ? applyRouteMetadata(body.toString('utf8'), routeMetadata[routeKey])
+        const isHtml = extname(filePath).toLowerCase() === '.html';
+        const responseBody = isHtml
+            ? applyRouteMetadata(body.toString('utf8'), routeKey ? routeMetadata[routeKey] : { ...notFoundTranslations.ca, canonicalPath: null })
             : body;
-        response.writeHead(200, {
+        response.writeHead(isHtml && !routeKey ? 404 : 200, {
             'Content-Type': mimeTypes[extname(filePath).toLowerCase()] || 'application/octet-stream',
             'Cache-Control': isAsset ? 'public, max-age=31536000, immutable' : 'no-cache',
         });
         response.end(request.method === 'HEAD' ? undefined : responseBody);
     }
-    catch {
-        response.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
-        response.end('Frontend build unavailable. Run npm run build before starting the server.');
+    catch (error) {
+        response.writeHead(error instanceof URIError ? 404 : 503, { 'Content-Type': 'text/plain; charset=utf-8' });
+        response.end(request.method === 'HEAD' ? undefined : error instanceof URIError ? 'Not found' : 'Frontend build unavailable. Run npm run build before starting the server.');
     }
 });
 const localDevelopmentOrigins = [/^http:\/\/(localhost|127\.0\.0\.1):\d+$/];
@@ -357,21 +368,17 @@ io.on('connection', (socket) => {
 });
 httpServer.listen(PORT, HOST, () => console.log(`Hangman server listening on http://${HOST}:${PORT}`));
 export { httpServer, games };
-function normalizeMetadataRoute(pathname) {
-    const trimmed = pathname.replace(/\/+$/, '') || '/';
-    return trimmed === '/' ? '/' : `${trimmed}/`;
-}
 function applyRouteMetadata(html, metadata) {
-    const canonical = new URL(metadata.canonicalPath, PUBLIC_SITE_ORIGIN).href;
+    const canonical = metadata.canonicalPath === null ? null : new URL(metadata.canonicalPath, PUBLIC_SITE_ORIGIN).href;
     const socialTitle = metadata.socialTitle ?? metadata.title;
     const socialDescription = metadata.socialDescription ?? metadata.description;
     return html
         .replace(/<title>.*?<\/title>/, `<title>${escapeHtml(metadata.title)}</title>`)
         .replace(/<meta name="description" content="[^"]*" \/>/, `<meta name="description" content="${escapeHtml(metadata.description)}" />`)
-        .replace(/<link rel="canonical" href="[^"]*" \/>/, `<link rel="canonical" href="${canonical}" />`)
+        .replace(/<link rel="canonical" href="[^"]*" \/>/, canonical ? `<link rel="canonical" href="${canonical}" />` : '')
         .replace(/<meta property="og:title" content="[^"]*" \/>/, `<meta property="og:title" content="${escapeHtml(socialTitle)}" />`)
         .replace(/<meta property="og:description" content="[^"]*" \/>/, `<meta property="og:description" content="${escapeHtml(socialDescription)}" />`)
-        .replace(/<meta property="og:url" content="[^"]*" \/>/, `<meta property="og:url" content="${canonical}" />`)
+        .replace(/<meta property="og:url" content="[^"]*" \/>/, canonical ? `<meta property="og:url" content="${canonical}" />` : '')
         .replace(/<meta name="twitter:title" content="[^"]*" \/>/, `<meta name="twitter:title" content="${escapeHtml(socialTitle)}" />`)
         .replace(/<meta name="twitter:description" content="[^"]*" \/>/, `<meta name="twitter:description" content="${escapeHtml(socialDescription)}" />`);
 }
