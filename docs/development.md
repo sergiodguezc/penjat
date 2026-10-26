@@ -29,6 +29,8 @@ Seasonal campaign dates, local preview/disable commands and file ownership are d
 
 Tests are Node assertions rather than a shared test-runner framework. TS tests run through TSX, Python tests through unittest. TSX transpiles tests but application type checks do not include the tests directory. Server suites import tracked generated JS from `dist-server`, so stale builds can hide defects.
 
+`npm run test:reconnection-notice` checks the four-second live reconnection notice with controlled timers, including repeated returns, unrelated snapshots, disconnect and cleanup. `test:reconnect` also checks three-player Socket.IO event delivery and silent restoration/takeover; `test:multiplayer-ui` checks that other players' absence warnings remain in CA/ES.
+
 For live integration, build first, then start a dedicated process:
 
 ```sh

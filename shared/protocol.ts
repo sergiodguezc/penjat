@@ -98,8 +98,6 @@ export type PlayerGameView = {
   privateWord?: string
   /** Reconnecting players whose absence blocks progression and whom this recipient may continue without. */
   skippablePlayerIds: string[]
-  reconnectedPlayerName?: string
-  disconnectedPlayerName?: string
 }
 
 export type Ack<T = undefined> = (response: { ok: true; data: T } | { ok: false; error: string }) => void
@@ -131,6 +129,8 @@ export interface ClientToServerEvents {
 
 export interface ServerToClientEvents {
   'room:state': (state: PlayerGameView) => void
+  /** Live event for other members; never included in snapshots or replayed on resume. */
+  'room:player-reconnected': (payload: { roomCode: string; playerId: string }) => void
   'room:error': (error: string) => void
   /** This connection no longer represents its player: another tab or device resumed the same session (`takeover`), or
    gave the seat up to create or join another room (`left`). */

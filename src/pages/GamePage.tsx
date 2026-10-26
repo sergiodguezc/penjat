@@ -15,6 +15,7 @@ import { RoundResults } from '../components/RoundResults'
 import { ObserverSelector } from '../components/ObserverSelector'
 import { errorMessage, multiplayerTranslations } from '../multiplayer/i18n'
 import { socket } from '../multiplayer/socket'
+import { listenForReconnections } from '../multiplayer/reconnectionNotice'
 import { hasSelectedWord, multiplayerPhase } from '../multiplayer/presentation'
 
 type Props = { onLeave: () => void; onExitToMenu: () => void; state: PlayerGameView; interfaceLanguage: 'ca' | 'es'; chat?: ReactNode; messages: ChatMessage[]; playerId: string; typingPlayers: { playerId: string; playerName: string }[] }
@@ -22,6 +23,7 @@ type Props = { onLeave: () => void; onExitToMenu: () => void; state: PlayerGameV
 export function GamePage({ state, interfaceLanguage, messages, playerId, typingPlayers, onLeave, onExitToMenu, chat }: Props) {
   const [word, setWord] = useState('')
   const [error, setError] = useState('')
+  const [reconnected, setReconnected] = useState(false)
   const t = multiplayerTranslations[interfaceLanguage]
   const phase = multiplayerPhase(state)
   const matchOver = phase === 'match-over'
@@ -39,6 +41,8 @@ export function GamePage({ state, interfaceLanguage, messages, playerId, typingP
   const guessed = new Set(observed?.guessedLetters ?? [])
   const wrong = new Set(observed?.wrongLetters ?? [])
   const pendingRequests = isSetter && phase === 'guessing' ? state.forgivenessRequests.filter((request) => request.status === 'pending') : []
+
+  useEffect(() => listenForReconnections(socket, state.code, playerId, setReconnected), [state.code, playerId])
 
   const handleAck = useCallback((response: Parameters<Ack>[0]) => {
     if (!response.ok) setError(errorMessage(response.error, t))
@@ -96,7 +100,7 @@ export function GamePage({ state, interfaceLanguage, messages, playerId, typingP
       {matchOver ? <MatchResults state={state} playerId={playerId} t={t} language={interfaceLanguage} onRematch={(ack) => socket.emit('match:rematch', ack)} onNewRoom={onLeave} onExitToMenu={onExitToMenu} />
       : <section className="multiplayer-game" ref={gameRef} tabIndex={-1}>
         {state.roomStatus === 'active' && <AbsenceNotice state={state} t={t} language={interfaceLanguage} />}
-        {state.roomStatus === 'active' && state.reconnectedPlayerName && <div className="reconnected-notice" role="status">{t.opponentReconnected}</div>}
+        {state.roomStatus === 'active' && reconnected && <div className="reconnected-notice" role="status">{t.opponentReconnected}</div>}
         {phase === 'choosing-word' && <>{round?.number === 1 && <div className="role-line" role="status">{isSetter ? t.youStart : t.playerStarts.replace('{player}', setter?.name ?? '')}</div>}{isSetter ? <form className="word-form" onSubmit={submitWord}>
           <label className="role-badge setter" htmlFor="secret-word-input"><span aria-hidden="true">✎ </span>{t.chooseWord}</label>
           <input id="secret-word-input" type="text" autoFocus maxLength={50} value={word} placeholder={t.secretPlaceholder} autoComplete="off" spellCheck={false} onChange={(e) => setWord(e.target.value)} />

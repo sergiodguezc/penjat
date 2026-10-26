@@ -318,6 +318,23 @@ function completedRoom(count: number) {
 function gameMarkup(room: GameRoom, language: 'ca' | 'es' = 'ca', playerId = '0') {
   return renderToStaticMarkup(<GamePage state={room.viewFor(playerId)} interfaceLanguage={language} messages={[]} playerId={playerId} typingPlayers={[]} onLeave={() => {}} onExitToMenu={() => {}} />)
 }
+// A return never persists in snapshots; other players' real absence warnings survive it in both languages.
+for (const language of ['ca', 'es'] as const) {
+  const room = new GameRoom('NOTICE', 'ca', 1, () => 0)
+  for (let i = 0; i < 3; i++) room.addPlayer(String(i), `s${i}`, `t${i}`, `Player ${i}`)
+  room.start('0')
+  room.markReconnecting('1', 's1'); room.markReconnecting('2', 's2')
+  room.resume('1', 't1', 's1-return')
+  const view = room.viewFor('0')
+  assert.equal('reconnectedPlayerName' in view, false)
+  assert.equal('disconnectedPlayerName' in view, false)
+  assert.match(gameMarkup(room, language), /class="connection-notice absence-notice"/)
+  assert.ok(gameMarkup(room, language).includes(multiplayerTranslations[language].playersReconnecting('Player 2', 1)))
+  assert.doesNotMatch(gameMarkup(room, language), /class="reconnected-notice"/, 'refreshing after a return has no historical success notice')
+  room.resume('2', 't2', 's2-return')
+  assert.doesNotMatch(gameMarkup(room, language), /class="connection-notice absence-notice"/, 'absence warning disappears when its player returns')
+}
+console.log('Three-player absence and silent restored-snapshot rendering passed in CA/ES')
 // Forgiveness retains six errors: the current resolved status must drive both players' illustrations.
 for (const language of ['ca', 'es'] as const) for (const outcome of ['solved', 'failed', 'eliminated'] as const) {
   const room = new GameRoom('FIRE6', 'ca', 1, () => 0)

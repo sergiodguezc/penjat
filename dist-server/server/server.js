@@ -206,6 +206,7 @@ io.on('connection', (socket) => {
         console.info('resume attempt', { roomCode, playerId, socketId: socket.id });
         try {
             const previousSocketId = games.rooms.get(roomCode)?.player(playerId)?.socketId;
+            const wasDisconnected = games.rooms.get(roomCode)?.player(playerId)?.connectionState !== 'connected';
             const room = games.resume(socket.id, roomCode, playerId, payload?.reconnectToken);
             // Another tab or device that still held this player stops receiving the room and is told why.
             if (previousSocketId && previousSocketId !== socket.id) {
@@ -216,6 +217,8 @@ io.on('connection', (socket) => {
             ack({ ok: true, data: room.viewFor(playerId) });
             socket.emit('chat:history', room.chatHistory);
             broadcast(room.code);
+            if (wasDisconnected)
+                socket.to(room.code).emit('room:player-reconnected', { roomCode: room.code, playerId });
             console.info('resume successful', { roomCode: room.code, playerId, socketId: socket.id });
         }
         catch (error) {

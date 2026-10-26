@@ -47,8 +47,6 @@ export class GameRoom {
   private matchResult: MatchResult = null
   private readonly observerBySetter = new Map<string, string>()
   private readonly chatMessages: ChatMessage[] = []
-  reconnectedPlayerName?: string
-  disconnectedPlayerName?: string
 
   constructor(readonly code: string, public language: Language, public voltes: Voltes, private readonly random = Math.random) {}
 
@@ -99,7 +97,6 @@ export class GameRoom {
     if (!player || !player.active || player.socketId !== socketId) return false
     player.socketId = null
     player.connectionState = 'reconnecting'
-    this.reconnectedPlayerName = undefined
     return true
   }
 
@@ -109,7 +106,6 @@ export class GameRoom {
     const wasAway = player.connectionState === 'disconnected'
     player.socketId = socketId
     player.connectionState = 'connected'
-    this.reconnectedPlayerName = player.name
     // Nothing is undone: a returning player keeps any turn result, and joins the current turn only before its word is set.
     const state = this.currentRound?.playerStates.get(playerId)
     if (wasAway && this.roomStatus === 'active' && this.currentRound?.status === 'choosing-word' && state?.sittingOut) {
@@ -124,7 +120,6 @@ export class GameRoom {
     const player = this.player(playerId)
     if (!player?.active || player.connectionState !== 'reconnecting') return false
     player.connectionState = 'disconnected'
-    this.disconnectedPlayerName = player.name
     this.releaseFromPlay(playerId, false)
     return true
   }
@@ -227,7 +222,6 @@ export class GameRoom {
     leaving.active = false
     leaving.socketId = null
     leaving.connectionState = 'disconnected'
-    this.disconnectedPlayerName = leaving.name
     this.releaseFromPlay(playerId, true)
   }
 
@@ -382,7 +376,6 @@ export class GameRoom {
       match, round: round ? this.roundView(round) : null, self: privateSelf,
       observedPlayerId: isSetter ? this.observerBySetter.get(playerId) ?? null : null,
       forgivenessRequests: isSetter && round ? [...round.forgivenessRequests.values()] : [], matchResult: this.matchResult,
-      reconnectedPlayerName: this.reconnectedPlayerName, disconnectedPlayerName: this.disconnectedPlayerName,
       skippablePlayerIds: this.blockingPlayerIds().filter((targetId) => this.canContinueWithout(playerId, targetId)),
     }
     const observedId = isSetter ? this.observerBySetter.get(playerId) : undefined

@@ -363,6 +363,67 @@ for (const [label, mutate, error] of [
   for (const each of [stranger, offline, guest, host]) each.disconnect()
 }
 
+// Successful returns are live events for the other players, never sticky snapshot fields.
+{
+  const { host, guest, code, session } = await room()
+  const third = client(); await connected(third)
+  const joined = await emit<Entry>(third, 'room:join', { name: 'Carla', code })
+  const notices: { roomCode: string; playerId: string }[][] = [[], [], []]
+  const sockets = [host, guest, third]
+  sockets.forEach((socket, index) => socket.on('room:player-reconnected', (event) => notices[index].push(event)))
+  const snapshot = () => games.rooms.get(code)!.viewFor(session.playerId)
+  const noStickyNotice = (view: PlayerGameView) => {
+    assert.equal('reconnectedPlayerName' in view, false)
+    assert.equal('disconnectedPlayerName' in view, false)
+  }
+  try {
+    host.emit('room:start', () => {})
+    await until(() => snapshot().roomStatus === 'active', 'match started')
+    guest.disconnect()
+    await until(() => snapshot().players.find((p) => p.id === session.playerId)?.connectionState === 'reconnecting', 'guest disconnected')
+    await connected(guest)
+    const resumed = await emit<{ ok: true; data: PlayerGameView }>(guest, 'room:resume', session)
+    noStickyNotice(resumed.data)
+    await until(() => notices[0].length === 1 && notices[2].length === 1, 'other players receive reconnection')
+    assert.deepEqual(notices[0][0], { roomCode: code, playerId: session.playerId })
+    assert.equal(notices[1].length, 0, 'returning player gets no own notice')
+    await emit(guest, 'room:resume', session)
+    await sleep(100)
+    assert.equal(notices[0].length, 1, 'resuming an already connected seat is silent')
+
+    third.disconnect()
+    await until(() => snapshot().players.find((p) => p.id === joined.data.session.playerId)?.connectionState === 'reconnecting', 'third disconnected')
+    guest.disconnect()
+    await until(() => snapshot().players.find((p) => p.id === session.playerId)?.connectionState === 'reconnecting', 'guest disconnected again')
+    await connected(guest)
+    await emit(guest, 'room:resume', session)
+    await until(() => notices[0].length === 2, 'same player returns again')
+    assert.equal(snapshot().players.find((p) => p.id === joined.data.session.playerId)?.connectionState, 'reconnecting', 'another player returning preserves the genuine absence')
+    await connected(third)
+    await emit(third, 'room:resume', joined.data.session)
+    await until(() => notices[0].length === 3 && notices[1].length === 1, 'different player returns')
+    assert.equal(notices[0][2].playerId, joined.data.session.playerId)
+    assert.equal(notices[2].length, 1, 'offline members do not receive missed events on resume')
+    noStickyNotice(snapshot())
+
+    const newcomer = client(); await connected(newcomer)
+    let historicalEvents = 0
+    newcomer.on('room:player-reconnected', () => historicalEvents++)
+    try {
+      // A new socket restoring a connected seat replaces the old one without announcing a return.
+      const restored = await emit<{ ok: true; data: PlayerGameView }>(newcomer, 'room:resume', session)
+      noStickyNotice(restored.data)
+      await sleep(100)
+      assert.equal(historicalEvents, 0)
+      assert.equal(notices[0].length, 3, 'takeover does not announce reconnection')
+      const rejected = await emit<{ ok: false; error: string }>(guest, 'room:resume', { ...session, reconnectToken: 'forged' })
+      assert.equal(rejected.ok, false)
+      await sleep(100)
+      assert.equal(notices[0].length, 3, 'rejected resumes emit no event')
+    } finally { newcomer.disconnect() }
+  } finally { sockets.forEach((socket) => socket.disconnect()) }
+}
+
 httpServer.close()
 console.log('Reconnect checks passed: storage, refresh/reopen, transport drop, failure and retry, invalid sessions, leave, two tabs, one seat per profile from the entry screen, invitations, continue-without permissions')
 process.exit(0)
