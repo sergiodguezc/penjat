@@ -103,6 +103,7 @@ function App() {
     return stored === 'es' || stored === 'ca' ? stored : 'ca'
   })
   const [room, setRoom] = useState<PlayerGameView | null>(null)
+  const [leavingRoom, setLeavingRoom] = useState(false)
   const { state: chatState, history: chatHistory, message: chatMessage, reaction: chatReaction, markRead: markChatRead, notificationHandled, reset: resetChat } = useChatInbox()
   const messages = chatState.messages
   const [chatDraft, setChatDraft] = useState('')
@@ -157,20 +158,32 @@ function App() {
       onInvalid: (error) => { setPlayerId(''); setRoom(null); resetChat(); setChatDraft(''); setChatOpen(false); setTypingPlayers({}); setNotice(error) },
     })
     restorer.current = roomRestorer
-    // Returning to a backgrounded tab or regaining the network: bring a dropped connection back now; `connect` resumes.
-    const wake = () => { if (document.visibilityState === 'visible' && !socket.connected) roomRestorer.resume() }
-    document.addEventListener('visibilitychange', wake)
-    window.addEventListener('online', wake)
-    window.addEventListener('pageshow', wake)
-    if (!socket.active) socket.connect(); else if (socket.connected) roomRestorer.resume()
     return () => {
       window.removeEventListener('popstate', onPopState)
-      document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake); window.removeEventListener('pageshow', wake)
       socket.off('room:state', update); socket.off('chat:history', history); socket.off('chat:message', message); socket.off('chat:reaction-updated', reaction); socket.off('chat:typing', typing)
       roomRestorer.dispose()
       if (restorer.current === roomRestorer) restorer.current = null
+      socket.disconnect()
     }
   }, [chatHistory, chatMessage, chatReaction, resetChat])
+
+  // A saved session restores even on a public route; ordinary visitors never need a transport there.
+  const needsConnection = route === '/multijugador/' || Boolean(room) || leavingRoom || restoreStatus === 'restoring' || restoreStatus === 'failed'
+  useEffect(() => {
+    if (!needsConnection) { socket.disconnect(); return }
+    const wake = () => {
+      if (document.visibilityState !== 'visible' || socket.connected) return
+      restorer.current?.resume()
+      if (!socket.active) socket.connect()
+    }
+    document.addEventListener('visibilitychange', wake)
+    window.addEventListener('online', wake)
+    window.addEventListener('pageshow', wake)
+    if (!socket.active) socket.connect(); else if (socket.connected) restorer.current?.resume()
+    return () => {
+      document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake); window.removeEventListener('pageshow', wake)
+    }
+  }, [needsConnection])
 
   // A tab that lost its seat reflects what other tabs store next (a new room to continue, or none).
   const [, setStorageVersion] = useState(0)
@@ -235,7 +248,11 @@ function App() {
   }
   const leaveRoom = () => {
     socket.emit('chat:typing', { isTyping: false })
-    socket.emit('room:leave')
+    // Wait for departure before closing the transport; queued packets can otherwise lose to DISCONNECT.
+    if (socket.connected) {
+      setLeavingRoom(true)
+      socket.timeout(REQUEST_TIMEOUT_MS).emit('room:leave', () => setLeavingRoom(false))
+    } else socket.emit('room:leave')
     restorer.current?.forget()
     setPlayerId('')
     setRoom(null)
@@ -327,7 +344,8 @@ function App() {
     const session = loadRoomSession()
     if (session && !shouldResumeRoomSession(session.roomCode, readInvitationCode())) {
       setRoom(null); resetChat(); setChatDraft(''); setChatOpen(false); setTypingPlayers({}); setPlayerId(''); setNotice('')
-      socket.disconnect().connect()
+      socket.disconnect()
+      if (next === '/multijugador/') socket.connect()
     }
   }
   useEffect(() => { popStateHandler.current = handlePopState })

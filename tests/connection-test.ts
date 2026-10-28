@@ -7,7 +7,7 @@ import { whenConnected } from '../src/multiplayer/socket'
 
 const PORT = 3211, PROXY = 3212, DOWN = 3213
 process.env.PORT = String(PORT); process.env.HOST = '127.0.0.1'
-const { httpServer } = await import('../dist-server/server/server.js')
+const { httpServer, games } = await import('../dist-server/server/server.js')
 await new Promise((resolve) => httpServer.listening ? resolve(null) : httpServer.once('listening', resolve))
 
 type Reply = { ok: boolean; data?: { session: { roomCode: string } }; error?: string }
@@ -29,7 +29,7 @@ for (const moment of ['at once', 'transport open, handshake pending'] as const) 
   const { host, code } = await roomCode()
   const socket = client(PORT); const opens = transportOpens(socket)
   const opened = new Promise((resolve) => socket.io.once('open', () => resolve(null)))
-  socket.connect() // App's connect on load
+  socket.connect() // App's connect on entering multiplayer
   if (moment !== 'at once') { await opened; assert.equal(socket.connected, false) }
   const reply = await (action === 'create' ? create(socket) : join(socket, code))
   assert.ok(typeof reply === 'object' && reply.ok, `${action} ${moment}: ${JSON.stringify(reply)}`)
@@ -58,6 +58,18 @@ for (const action of ['create', 'join'] as const) {
   socket.disconnect(); host.disconnect()
 }
 proxy.close()
+
+// Leaving the entry screen while connecting cancels the pending action, including on a later connection.
+{
+  const socket = client(PORT)
+  let calls = 0
+  const cancel = whenConnected(socket, () => { calls++ }, () => { calls++ })
+  cancel(); socket.disconnect()
+  socket.connect(); await new Promise((resolve) => socket.once('connect', resolve))
+  assert.equal(calls, 0, 'cancelled entry never runs after reconnecting')
+  assert.equal(socket.listeners('connect_error').length, 0, 'cancel removes the failure listener too')
+  socket.disconnect()
+}
 
 // 3. Already connected: the request goes out at once, without touching the connection.
 for (const action of ['create', 'join'] as const) {
@@ -94,6 +106,18 @@ for (const action of ['create', 'join'] as const) {
   assert.ok(typeof reply === 'object' && reply.ok, `retry after the server came back: ${JSON.stringify(reply)}`)
   assert.equal(opens(), 1, 'one transport once the server is reachable')
   socket.disconnect(); late.close()
+}
+
+// Departure is acknowledged only after the seat is released, so closing the transport cannot retain it.
+{
+  const socket = client(PORT)
+  const reply = await create(socket)
+  assert.ok(typeof reply === 'object' && reply.ok)
+  const code = reply.data!.session.roomCode
+  assert.deepEqual(await socket.timeout(1_000).emitWithAck('room:leave'), { ok: true })
+  assert.equal(games.rooms.has(code), false, 'the last seat is removed before acknowledging departure')
+  assert.deepEqual(await socket.timeout(1_000).emitWithAck('room:leave'), { ok: true }, 'leaving twice still acknowledges')
+  socket.disconnect()
 }
 
 httpServer.close()

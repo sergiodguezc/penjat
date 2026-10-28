@@ -124,7 +124,7 @@ export interface ClientToServerEvents {
   'match:rematch': (ack: Ack) => void
   /** Continue without a reconnecting player who blocks progression (host, or whoever would take over their turn). */
   'room:continue-without': (payload: { playerId: string }, ack: Ack) => void
-  'room:leave': () => void
+  'room:leave': (ack?: Ack) => void
 }
 
 export interface ServerToClientEvents {

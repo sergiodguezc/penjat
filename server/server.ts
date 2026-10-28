@@ -328,13 +328,14 @@ io.on('connection', (socket) => {
     }
   })
 
-  socket.on('room:leave', () => {
+  socket.on('room:leave', (ack) => {
     const identity = games.identityForSocket(socket.id)
-    if (!identity) return
+    if (!identity) { ack?.({ ok: true, data: undefined }); return }
     socket.to(identity.room.code).emit('chat:typing', { playerId: identity.playerId, playerName: identity.room.player(identity.playerId)?.name ?? '', isTyping: false })
     const room = games.leaveSocket(socket.id)
     socket.leave(identity.room.code)
     if (room) broadcast(room.code)
+    ack?.({ ok: true, data: undefined })
   })
   socket.on('disconnect', (reason) => {
     console.info('socket disconnected', { socketId: socket.id, reason })

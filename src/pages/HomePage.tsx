@@ -60,6 +60,7 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const entryRequest = useRef({ version: 0, cancel: undefined as (() => void) | undefined }).current
   // Creating or joining another room while this profile holds a seat elsewhere waits for an explicit confirmation.
   const [pendingSwitch, setPendingSwitch] = useState<{ action: EntryAction; session: RoomSession } | null>(null)
   const [invitation, setInvitation] = useState<RoomPreview | null>(null)
@@ -77,6 +78,10 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
   const previewSlots = ['', 'E', '', 'J', '', 'T']
 
   useEffect(() => { setPanel(mode === 'multiplayer' ? 'multiplayer' : 'menu') }, [mode])
+  useEffect(() => {
+    setBusy(false)
+    return () => { entryRequest.version++; entryRequest.cancel?.() }
+  }, [mode, invitedRoomCode, entryRequest])
 
   // Re-read on return from another tab and after the Madrid date changes while open.
   useEffect(() => {
@@ -105,8 +110,10 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
   const connectionFailed = useCallback(() => { setBusy(false); setError(errorMessage('connect_error', t)) }, [t])
   const connect = useCallback((done: () => void) => {
     setBusy(true); setError('')
-    whenConnected(socket, done, connectionFailed)
-  }, [connectionFailed])
+    const current = entryRequest.version
+    entryRequest.cancel?.()
+    entryRequest.cancel = whenConnected(socket, () => { if (current === entryRequest.version) done() }, () => { if (current === entryRequest.version) connectionFailed() })
+  }, [connectionFailed, entryRequest])
 
   useEffect(() => {
     if (mode !== 'multiplayer' || invitedRoomCode === null) {
@@ -158,7 +165,8 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
     return false
   }
 
-  const entered = (playerName: string) => (timedOut: Error | null, response: Parameters<Ack<RoomEntry>>[0]) => {
+  const entered = (playerName: string, current = entryRequest.version) => (timedOut: Error | null, response: Parameters<Ack<RoomEntry>>[0]) => {
+    if (current !== entryRequest.version) return
     if (timedOut) return connectionFailed()
     setBusy(false)
     if (!response.ok) return setError(errorMessage(response.error, t))
@@ -181,7 +189,10 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
     if (!pending) return
     // The seat changed while the question was open: decide again for what is stored now.
     if (loadRoomSession()?.reconnectToken !== pending.session.reconnectToken) { submit(pending.action); return }
-    connect(() => { void abandonRoomSession(socket, pending.session, REQUEST_TIMEOUT_MS).then((result) => result === 'left' ? run(pending.action) : connectionFailed()) })
+    const current = entryRequest.version
+    connect(() => { void abandonRoomSession(socket, pending.session, REQUEST_TIMEOUT_MS).then((result) => {
+      if (current === entryRequest.version) { if (result === 'left') run(pending.action); else connectionFailed() }
+    }) })
   }
   const switchDialog = pendingSwitch && <Modal className="exit-confirmation-dialog" labelledBy="switch-room-title" describedBy="switch-room-copy" onCancel={() => setPendingSwitch(null)}>
     <h2 id="switch-room-title">{t.switchTitle(pendingSwitch.session.roomCode)}</h2>
