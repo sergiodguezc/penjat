@@ -18,8 +18,8 @@ Use Node 24 (>=24 <25), npm and Python 3 for offline vocabulary checks.
 - Full-stack dev: `npm run dev`; separate: `npm run dev:vite-only` and `npm run dev:server`. `dev:client` also starts both.
 - Build: `npm run build`; production locally: `npm start`. `npm run preview` previews only the frontend.
 - Lint: `npm run lint`. Type check: `npx tsc -b --pretty false` and `npx tsc -p server/tsconfig.json --noEmit` (also checked by build).
-- Client/domain: `npm run test:learning`, `test:vocabulary`, `test:daily`, `test:invitation`, `test:localization`, `test:navigation`, `test:character`, `test:multiplayer-ui`, `test:match-results`.
-- Backend: build server first, then `npm run test:game`, `test:chat`, `test:lifecycle`, `test:match`, `test:n-player`, `test:absence`, `test:reconnect`, `test:lobby-settings`.
+- Client/domain: `npm run test:learning`, `test:vocabulary`, `test:daily`, `test:invitation`, `test:localization`, `test:navigation`, `test:character`, `test:multiplayer-ui`, `test:match-results`, `test:storage`.
+- Backend: build server first, then `npm run test:game`, `test:chat`, `test:lifecycle`, `test:match`, `test:n-player`, `test:absence`, `test:reconnect`, `test:lobby-settings`, `test:seat-lifecycle`.
 - Integration: `TEST_SERVER_URL=http://127.0.0.1:3002 npm run test:e2e` with a dedicated local server. `npm run test:seo` starts its own server after a full build.
 - Browser navigation/storage regressions: `npm run test:browser` with dedicated Firefox BiDi and a local built server; setup is in development docs. No additional npm dependency.
 - Corpus: `npm run test:vocab` and `npm run vocab:validate` (offline). Do not regenerate or run paid enrichment just to validate a UI fix.

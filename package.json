@@ -25,6 +25,7 @@
     "test:n-player": "node scripts/n-player-test.mjs",
     "test:absence": "node scripts/absence-test.mjs",
     "test:connection": "tsx --tsconfig tsconfig.app.json tests/connection-test.ts",
+    "test:seat-lifecycle": "tsx --tsconfig tsconfig.app.json tests/seat-lifecycle-test.ts",
     "test:reconnect": "tsx --tsconfig tsconfig.app.json tests/reconnect-test.ts",
     "test:reconnection-notice": "tsx --tsconfig tsconfig.app.json tests/reconnection-notice-test.ts",
     "test:lobby-settings": "tsx --tsconfig tsconfig.app.json tests/lobby-settings-test.ts",

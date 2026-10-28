@@ -206,7 +206,7 @@ export class GameRoom {
         this.rematchReady.add(playerId);
         this.maybeStartRematch();
     }
-    /** Explicit departure: the seat is given up for good. */
+    /** Explicit departure: the seat is given up for good. During a match it stays listed (inactive) for scores and results. */
     disconnect(playerId) {
         const leaving = this.player(playerId);
         if (!leaving || !leaving.active)
@@ -215,6 +215,11 @@ export class GameRoom {
         leaving.socketId = null;
         leaving.connectionState = 'disconnected';
         this.releaseFromPlay(playerId, true);
+        // A lobby seat has no score or result yet: drop it, so joining and leaving cannot grow the roster without limit.
+        if (this.roomStatus === 'waiting') {
+            this.players.splice(this.players.indexOf(leaving), 1);
+            this.observerBySetter.delete(playerId);
+        }
     }
     /**
      * Reconnecting players whose absence stops the room from moving on: a host the lobby needs to start, a setter choosing

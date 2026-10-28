@@ -24,7 +24,13 @@ export class GameManager {
         // Unreferenced: room timers never keep a finished process (or a test) alive; the HTTP server does that.
         this.scheduler = options.scheduler ?? { setTimeout: (callback, ms) => setTimeout(callback, ms).unref(), clearTimeout: (timer) => clearTimeout(timer) };
     }
+    /**
+     * One connection holds at most one seat. Creating or joining another room gives the previous seat up as an explicit
+     * leave: the browser replaces its credentials, so nobody could return to it (a retry after a lost acknowledgement then
+     * leaves no orphaned room behind). `released` names the seat given up, for the caller to unsubscribe and notify.
+     */
     create(socketId, name, language, voltes) {
+        const released = this.releaseSeat(socketId);
         let code = this.code();
         while (this.rooms.has(code))
             code = this.code();
@@ -34,19 +40,24 @@ export class GameManager {
         this.rooms.set(code, room);
         this.playerRooms.set(playerId, code);
         this.socketPlayers.set(socketId, playerId);
-        return { room, playerId, reconnectToken };
+        return { room, playerId, reconnectToken, released };
     }
+    /** A rejected join keeps the connection's current seat; joining the room it already sits in returns that seat. */
     join(socketId, name, rawCode) {
         const code = rawCode.trim().toUpperCase();
         const room = this.rooms.get(code);
         if (!room)
             throw new Error('room-not-found');
+        const current = this.identityForSocket(socketId);
+        if (current?.room === room)
+            return { room, playerId: current.playerId, reconnectToken: room.player(current.playerId).reconnectToken, released: undefined };
         const playerId = randomUUID(), reconnectToken = randomUUID();
         room.addPlayer(playerId, socketId, reconnectToken, name);
+        const released = this.releaseSeat(socketId);
         this.playerRooms.set(playerId, code);
         this.socketPlayers.set(socketId, playerId);
         this.cancelExpiry(code);
-        return { room, playerId, reconnectToken };
+        return { room, playerId, reconnectToken, released };
     }
     roomForPlayer(playerId) {
         const code = this.playerRooms.get(playerId);
@@ -57,18 +68,24 @@ export class GameManager {
         const room = playerId ? this.roomForPlayer(playerId) : undefined;
         return playerId && room ? { playerId, room } : undefined;
     }
+    /**
+     * A rejected resume changes nothing. Resuming a different seat than the one this connection holds treats the old seat
+     * as a lost connection, not a departure: its credentials may still be valid elsewhere, so it keeps the grace period.
+     */
     resume(socketId, code, playerId, token) {
         const room = this.rooms.get(code.trim().toUpperCase());
         if (!room || this.playerRooms.get(playerId) !== room.code)
             throw new Error('room-not-found');
         const previousSocketId = room.player(playerId)?.socketId;
+        const current = this.identityForSocket(socketId);
         room.resume(playerId, token, socketId);
+        const released = current && current.playerId !== playerId ? this.markReconnecting(socketId) : undefined;
         if (previousSocketId && previousSocketId !== socketId)
             this.socketPlayers.delete(previousSocketId);
         this.socketPlayers.set(socketId, playerId);
         this.cancelAbsence(playerId);
         this.cancelExpiry(room.code);
-        return room;
+        return { room, released };
     }
     /** Explicit leave by credentials rather than by connection; returns the socket that held the seat, if any. */
     abandon(code, playerId, token) {
@@ -113,6 +130,14 @@ export class GameManager {
         if (changed)
             this.cancelAbsence(targetId);
         return identity.room;
+    }
+    releaseSeat(socketId) {
+        const identity = this.identityForSocket(socketId);
+        if (!identity)
+            return undefined;
+        const playerName = identity.room.player(identity.playerId)?.name ?? '';
+        this.removePlayer(identity.playerId, socketId);
+        return { ...identity, playerName };
     }
     /** Explicit leave: the seat is given up; the last member leaving deletes the room at once. */
     removePlayer(playerId, socketId) {

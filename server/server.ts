@@ -165,6 +165,16 @@ const roomPreview = (rawCode: string) => {
 io.on('connection', (socket) => {
   console.info('socket connected', { socketId: socket.id })
   const broadcast = broadcastRoom
+  /** The seat this connection gave up for another one: stop its room's messages here and tell the members still there. */
+  const leavePrevious = (released: { room: { code: string }; playerId: string; playerName?: string } | undefined, nextCode: string) => {
+    if (!released) return
+    if (released.room.code !== nextCode) socket.leave(released.room.code)
+    if (!games.rooms.has(released.room.code)) return
+    const playerName = released.playerName ?? games.rooms.get(released.room.code)?.player(released.playerId)?.name ?? ''
+    socket.to(released.room.code).emit('chat:typing', { playerId: released.playerId, playerName, isTyping: false })
+    broadcast(released.room.code)
+    console.info('connection released previous seat', { roomCode: released.room.code, playerId: released.playerId, socketId: socket.id })
+  }
   const action = (ack: Ack, operation: () => void) => {
     try { operation(); ack({ ok: true, data: undefined }) }
     catch (error) { ack({ ok: false, error: error instanceof Error ? error.message : 'unknown-error' }) }
@@ -174,7 +184,8 @@ io.on('connection', (socket) => {
     const name = cleanName(payload?.name)
     const settings = cleanSettings(payload, { language: 'ca', voltes: DEFAULT_VOLTES })
     if (!name || !settings) return ack({ ok: false, error: 'invalid-details' })
-    const { room, playerId, reconnectToken } = games.create(socket.id, name, settings.language!, settings.voltes!)
+    const { room, playerId, reconnectToken, released } = games.create(socket.id, name, settings.language!, settings.voltes!)
+    leavePrevious(released, room.code)
     socket.join(room.code)
     ack({ ok: true, data: { view: room.viewFor(playerId), session: { roomCode: room.code, playerId, reconnectToken } } })
     socket.emit('chat:history', room.chatHistory)
@@ -185,7 +196,8 @@ io.on('connection', (socket) => {
     const name = cleanName(payload?.name)
     if (!name || typeof payload?.code !== 'string') return ack({ ok: false, error: 'invalid-details' })
     try {
-      const { room, playerId, reconnectToken } = games.join(socket.id, name, payload.code)
+      const { room, playerId, reconnectToken, released } = games.join(socket.id, name, payload.code)
+      leavePrevious(released, room.code)
       socket.join(room.code)
       ack({ ok: true, data: { view: room.viewFor(playerId), session: { roomCode: room.code, playerId, reconnectToken } } })
       socket.emit('chat:history', room.chatHistory)
@@ -201,7 +213,8 @@ io.on('connection', (socket) => {
     try {
       const previousSocketId = games.rooms.get(roomCode)?.player(playerId)?.socketId
       const wasDisconnected = games.rooms.get(roomCode)?.player(playerId)?.connectionState !== 'connected'
-      const room = games.resume(socket.id, roomCode, playerId, payload?.reconnectToken)
+      const { room, released } = games.resume(socket.id, roomCode, playerId, payload?.reconnectToken)
+      leavePrevious(released, room.code)
       // Another tab or device that still held this player stops receiving the room and is told why.
       if (previousSocketId && previousSocketId !== socket.id) {
         io.in(previousSocketId).socketsLeave(room.code)

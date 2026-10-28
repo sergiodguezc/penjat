@@ -198,7 +198,8 @@ function setup(names = ['Ana', 'Biel', 'Cesc']) {
 {
   const { games, room, players: [ana, biel], back } = setup(['Ana', 'Biel'])
   games.removePlayer(biel.id, biel.socket)
-  assert.equal(room.player(biel.id).active, false)
+  assert.equal(room.player(biel.id), undefined, 'a lobby departure gives the seat up entirely (nothing to score yet)')
+  assert.equal(room.players.length, 1)
   assert.throws(() => back(biel), /room-not-found|resume-rejected/)
   games.removePlayer(ana.id, ana.socket)
   assert.equal(games.rooms.has(room.code), false)
