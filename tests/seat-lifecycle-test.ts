@@ -313,14 +313,21 @@ try {
     const lobby = games.rooms.get(room.roomCode)
     assert.deepEqual(lobby.players.map((player: { name: string; connectionState: string }) => `${player.name}:${player.connectionState}`), ['Ana:connected', 'Biel:connected', 'Cesc:reconnecting'])
     assert.equal((await send(ana, 'room:start')).ok, true)
+    // The first setter is random: wherever reconnecting Cesc blocks (setter, guesser, next setter), the host continues
+    // without him, after which he is away and skipped.
+    const cescId = lobby.players[2].id
+    const skipCesc = async () => assert.equal((await send(ana, 'room:continue-without', { playerId: cescId })).ok, true)
     for (let steps = 0; lobby.roomStatus === 'active' && steps < 100; steps += 1) {
       const round = lobby.viewFor(lobby.hostId).round
       const as = (id: string) => [ana, biel].find((socket) => games.identityForSocket(socket.id)?.playerId === id)!
-      if (round.status === 'choosing-word') assert.equal((await send(as(round.setterId), 'round:set-word', { word: 'CASA' })).ok, true)
-      else if (round.status === 'guessing') {
+      if (round.status === 'choosing-word') {
+        if (round.setterId === cescId) await skipCesc()
+        else assert.equal((await send(as(round.setterId), 'round:set-word', { word: 'CASA' })).ok, true)
+      } else if (round.status === 'guessing') {
         for (const socket of [ana, biel]) for (const letter of ['C', 'A', 'S']) if (lobby.viewFor(games.identityForSocket(socket.id).playerId).self?.status === 'playing') await send(socket, 'game:guess', { letter })
-        if (lobby.viewFor(lobby.hostId).round.status === 'guessing') assert.equal((await send(ana, 'room:continue-without', { playerId: games.rooms.get(room.roomCode).players[2].id })).ok, true)
-      } else if (round.nextSetterId) assert.equal((await send(as(round.nextSetterId), 'round:continue')).ok, true)
+        if (lobby.viewFor(lobby.hostId).round.status === 'guessing') await skipCesc()
+      } else if (round.nextSetterId === cescId) await skipCesc()
+      else if (round.nextSetterId) assert.equal((await send(as(round.nextSetterId), 'round:continue')).ok, true)
     }
     assert.equal(lobby.roomStatus, 'match-over')
     await sleep(100)
