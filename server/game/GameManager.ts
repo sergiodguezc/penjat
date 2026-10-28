@@ -1,6 +1,6 @@
 import type { Language } from '../../shared/game.js'
 import { GameRoom } from './GameRoom.js'
-import { randomUUID } from 'node:crypto'
+import { randomInt, randomUUID } from 'node:crypto'
 import type { Voltes } from '../../shared/protocol.js'
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -172,6 +172,6 @@ export class GameManager {
   }
 
   private code() {
-    return Array.from({ length: 5 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('')
+    return Array.from({ length: 5 }, () => CODE_CHARS[randomInt(CODE_CHARS.length)]).join('')
   }
 }

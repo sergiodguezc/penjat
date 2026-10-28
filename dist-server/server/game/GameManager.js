@@ -1,5 +1,5 @@
 import { GameRoom } from './GameRoom.js';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 /** A lost connection freezes the player's part of the game this long; then they are away (seat kept, game moves on). */
 export const ABSENCE_GRACE_MS = 2 * 60_000;
@@ -166,6 +166,6 @@ export class GameManager {
         this.expiryTimers.delete(code);
     }
     code() {
-        return Array.from({ length: 5 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
+        return Array.from({ length: 5 }, () => CODE_CHARS[randomInt(CODE_CHARS.length)]).join('');
     }
 }

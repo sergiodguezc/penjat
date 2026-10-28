@@ -18,6 +18,7 @@ Seasonal campaign dates, local preview/disable commands and file ownership are d
 | Daily | `npm run test:daily`; `npm run test:vocabulary` |
 | Invitations / language routing | `npm run test:invitation`; `npm run test:localization` |
 | Navigation / history guard | `npm run test:navigation` |
+| Blocked or full browser storage | `npm run test:storage` (every page renders, room entry keeps a page-only seat and says a refresh cannot rejoin, settings and daily challenge) |
 | Character drawing | `npm run test:character` |
 | Seasonal calendar / activation | `npm run test:seasonal` |
 | Multiplayer UI (static markup) | `npm run test:multiplayer-ui` |
@@ -25,7 +26,7 @@ Seasonal campaign dates, local preview/disable commands and file ownership are d
 | Server domain | `npm run build:server`, then `npm run test:game`, `npm run test:chat`, `npm run test:lifecycle`, `npm run test:match`, `npm run test:n-player`, `npm run test:connection` (create/join while the client connection is still being established), `npm run test:absence` (controlled-time retained seats: return within the 2-minute grace period, absence in each phase, blocking-only "continue without" permissions and races, return as a spectator, host transfer, rematch, explicit leave, room expiry), `npm run test:lobby-settings` (default create, host-only lobby settings, invalid values, sync, start with confirmed settings, host transfer and reconnection), `npm run test:reconnect` (stored room credentials, legacy migration and restoration: refresh/reopen, transport drop, failure and retry, invalid sessions, explicit leave, two tabs, invitations) |
 | Offline corpus pipeline | `npm run test:vocab`; `npm run vocab:validate` |
 | Types / lint | `npx tsc -b --pretty false`; `npx tsc -p server/tsconfig.json --noEmit`; `npm run lint` |
-| Production / SEO | `npm run build`; `npm run test:seo` (starts its own server on 3205) |
+| Production / SEO / HTTP hardening | `npm run build`; `npm run test:seo` (starts its own server on 3205; also legacy `/es/` redirects that stay on the site and malformed request targets answered with 400 without stopping the process) |
 
 Tests are Node assertions rather than a shared test-runner framework. TS tests run through TSX, Python tests through unittest. TSX transpiles tests but application type checks do not include the tests directory. Server suites import tracked generated JS from `dist-server`, so stale builds can hide defects.
 

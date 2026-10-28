@@ -10,13 +10,14 @@ import { getDailyChallenge, getDailyChallengeUrl, formatDailyShareData } from '.
 import { applyDailyGuess, createDailyRound, type DailyRound } from '../daily/game'
 import { dailyTranslations } from '../daily/i18n'
 import { readDailyAttempt, writeDailyAttempt } from '../daily/storage'
+import { browserStorage } from '../storage'
 
 type Props = { language: Language; onActiveGameChange?: (active: boolean) => void; onHome?: () => void }
 
 export function DailyChallengePage({ language, onActiveGameChange, onHome }: Props) {
   const challenge = useMemo(() => getDailyChallenge(), [])
   const [round, setRound] = useState<DailyRound>(() => {
-    const stored = readDailyAttempt(localStorage, challenge.id)
+    const stored = readDailyAttempt(browserStorage(), challenge.id)
     return createDailyRound(challenge.entry, stored?.guesses)
   })
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
@@ -26,7 +27,7 @@ export function DailyChallengePage({ language, onActiveGameChange, onHome }: Pro
   const [completedOnLoad] = useState(completed)
 
   useEffect(() => {
-    writeDailyAttempt(localStorage, {
+    writeDailyAttempt(browserStorage(), {
       challengeId: challenge.id,
       guesses: [...round.guesses],
       completed,

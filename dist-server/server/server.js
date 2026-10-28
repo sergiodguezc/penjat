@@ -51,7 +51,13 @@ const routeMetadata = {
 };
 const httpServer = createServer(async (request, response) => {
     // Origin-form paths beginning with // are paths, not protocol-relative hostnames.
-    const url = new URL(request.url?.startsWith('/') ? `http://localhost${request.url}` : request.url || '/', 'http://localhost');
+    const url = URL.parse(request.url?.startsWith('/') ? `http://localhost${request.url}` : request.url || '/', 'http://localhost');
+    // An unparseable request target (e.g. `GET http://[`) must not throw here: outside the try below it would end the process.
+    if (!url) {
+        response.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+        response.end(request.method === 'HEAD' ? undefined : 'Bad request');
+        return;
+    }
     if (url.pathname.startsWith('/socket.io/'))
         return;
     response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -85,7 +91,8 @@ const httpServer = createServer(async (request, response) => {
             ? '/'
             : trimmedPath === '/es/como-jugar'
                 ? '/com-es-juga/'
-                : `${trimmedPath.slice(3)}/`;
+                // Collapse repeated slashes: `/es//evil.com` must stay on this site, never become `//evil.com/`.
+                : `${trimmedPath.slice(3).replace(/^\/+/, '/')}/`;
         response.writeHead(308, { Location: `${canonicalPath}${url.search}` });
         response.end();
         return;

@@ -10,9 +10,9 @@ export type StoredDailyAttempt = {
   mistakes: number
 }
 
-export function readDailyAttempt(storage: Pick<Storage, 'getItem'>, challengeId: string): StoredDailyAttempt | null {
+export function readDailyAttempt(storage: Pick<Storage, 'getItem'> | null, challengeId: string): StoredDailyAttempt | null {
   try {
-    const raw = storage.getItem(DAILY_CHALLENGE_STORAGE_KEY)
+    const raw = storage?.getItem(DAILY_CHALLENGE_STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<StoredDailyAttempt>
     if (parsed.challengeId !== challengeId || !Array.isArray(parsed.guesses)) return null
@@ -29,6 +29,7 @@ export function readDailyAttempt(storage: Pick<Storage, 'getItem'>, challengeId:
   }
 }
 
-export function writeDailyAttempt(storage: Pick<Storage, 'setItem'>, attempt: StoredDailyAttempt): void {
-  storage.setItem(DAILY_CHALLENGE_STORAGE_KEY, JSON.stringify(attempt))
+/** Blocked storage or a full quota never interrupts the game; today's progress then lasts only for this visit. */
+export function writeDailyAttempt(storage: Pick<Storage, 'setItem'> | null, attempt: StoredDailyAttempt): void {
+  try { storage?.setItem(DAILY_CHALLENGE_STORAGE_KEY, JSON.stringify(attempt)) } catch { /* play continues without saving */ }
 }

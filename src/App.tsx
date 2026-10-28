@@ -16,10 +16,11 @@ import { notFoundTranslations } from '../shared/notFound'
 import { SiteHeader } from './components/SiteHeader'
 import { SiteFooter } from './components/SiteFooter'
 import { INTERFACE_LANGUAGE_STORAGE_KEY, readInterfaceLanguage } from './localization'
+import { browserStorage, readStored, writeStored } from './storage'
 import { normalizeInvitationCode, shouldResumeRoomSession } from './multiplayer/invitations'
 import { REQUEST_TIMEOUT_MS, socket } from './multiplayer/socket'
 import { createRoomRestorer, loadRoomSession, type RestoreStatus, type RoomRestorer } from './multiplayer/roomSession'
-import { RoomRestoreNotice, SelfConnectionNotice } from './components/RoomRestoreNotice'
+import { RoomRestoreNotice, SelfConnectionNotice, UnsavedSessionNotice } from './components/RoomRestoreNotice'
 import { normalizeRoute, type Route } from './routing'
 import { historyIndex, resolveHistoryMove } from './navigation/history'
 import './App.css'
@@ -97,9 +98,9 @@ function App() {
   const shownUrl = useRef(`${window.location.pathname}${window.location.search}`)
   const allowHistoryMove = useRef(false)
   const popStateHandler = useRef(() => {})
-  const [interfaceLanguage, setInterfaceLanguage] = useState<Language>(() => readInterfaceLanguage(localStorage))
+  const [interfaceLanguage, setInterfaceLanguage] = useState<Language>(() => readInterfaceLanguage(browserStorage()))
   const [gameLanguage, setGameLanguage] = useState<Language>(() => {
-    const stored = localStorage.getItem('hangman-game-language')
+    const stored = readStored('hangman-game-language')
     return stored === 'es' || stored === 'ca' ? stored : 'ca'
   })
   const [room, setRoom] = useState<PlayerGameView | null>(null)
@@ -132,7 +133,7 @@ function App() {
     window.addEventListener('popstate', onPopState)
     const update = (state: PlayerGameView) => {
       if (!shouldResumeRoomSession(state.code, readInvitationCode())) return
-      setRoom(state); setGameLanguage(state.gameLanguage); localStorage.setItem('hangman-game-language', state.gameLanguage)
+      setRoom(state); setGameLanguage(state.gameLanguage); writeStored('hangman-game-language', state.gameLanguage)
     }
     socket.on('room:state', update)
     const history = chatHistory
@@ -244,7 +245,7 @@ function App() {
 
   const changeInterfaceLanguage = (next: Language) => {
     setInterfaceLanguage(next)
-    localStorage.setItem(INTERFACE_LANGUAGE_STORAGE_KEY, next)
+    writeStored(INTERFACE_LANGUAGE_STORAGE_KEY, next)
   }
   const leaveRoom = () => {
     socket.emit('chat:typing', { isTyping: false })
@@ -356,7 +357,7 @@ function App() {
   const footer = <SiteFooter language={interfaceLanguage} onNavigate={navigate} />
 
   const retryRestore = () => restorer.current?.retry()
-  const connectionNotice = <SelfConnectionNotice language={interfaceLanguage} status={restoreStatus} onRetry={retryRestore} />
+  const connectionNotice = <><SelfConnectionNotice language={interfaceLanguage} status={restoreStatus} onRetry={retryRestore} /><UnsavedSessionNotice language={interfaceLanguage} /></>
   if (!route) return <>{header()}<NotFoundPage language={interfaceLanguage} onHome={() => navigate('/')} />{footer}{exitDialog}</>
   if (!room && restoreStatus !== 'idle') return <>{header()}<RoomRestoreNotice language={interfaceLanguage} status={restoreStatus} roomCode={loadRoomSession()?.roomCode ?? null} lostToken={restorer.current?.lostToken() ?? null}
     onRetry={retryRestore} onLeave={() => leave()} onDismiss={() => { setRestoreStatus('idle'); goTo('/multijugador/') }} />{exitDialog}</>

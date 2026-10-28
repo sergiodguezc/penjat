@@ -33,4 +33,22 @@ assert.equal(games.rooms.has(first.room.code), true)
 games.removePlayer(first.playerId)
 assert.equal(games.rooms.has(first.room.code), false)
 
+// Room codes come from the crypto generator: a constant Math.random (once the source of codes) changes nothing, every
+// code keeps the 5-character unambiguous alphabet, and live codes never collide.
+{
+  const realRandom = Math.random
+  Math.random = () => 0
+  try {
+    const codes = new GameManager(() => 0)
+    const seen = new Set()
+    for (let index = 0; index < 200; index += 1) {
+      const { room } = codes.create(`code-socket-${index}`, 'Ana', 'ca', 1)
+      assert.match(room.code, /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{5}$/)
+      seen.add(room.code)
+    }
+    assert.equal(seen.size, 200)
+    assert.equal(codes.rooms.size, 200)
+  } finally { Math.random = realRandom }
+}
+
 console.log('Reconnect lifecycle checks passed')

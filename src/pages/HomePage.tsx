@@ -10,6 +10,7 @@ import { abandonRoomSession, entryDecision, loadRoomSession, saveRoomSession, ty
 import { shouldResumeRoomSession } from '../multiplayer/invitations'
 import { DAILY_CHALLENGE_PUBLIC_PATH, getDailyChallenge } from '../daily/challenge'
 import { getHomeDailyStatus } from '../daily/homeSummary'
+import { browserStorage, readStored, writeStored } from '../storage'
 import { dailyTranslations } from '../daily/i18n'
 import { homeTranslations } from '../home/i18n'
 import { seasonalTranslations } from '../seasonal/i18n'
@@ -43,7 +44,7 @@ function isStandalonePwa() {
 function readHomeDaily() {
   const challenge = getDailyChallenge()
   try {
-    return { number: challenge.number, ...getHomeDailyStatus(challenge, localStorage) }
+    return { number: challenge.number, ...getHomeDailyStatus(challenge, browserStorage()) }
   } catch {
     return { number: challenge.number, status: 'new' as const, mistakes: 0 }
   }
@@ -170,7 +171,8 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
     if (timedOut) return connectionFailed()
     setBusy(false)
     if (!response.ok) return setError(errorMessage(response.error, t))
-    localStorage.setItem('hangman-name', playerName.trim()); saveRoomSession(response.data.session); onEnter(response.data.view, response.data.session.playerId)
+    // The room exists either way: unsaved credentials only mean a refresh cannot rejoin, which the room page says.
+    writeStored('hangman-name', playerName.trim()); saveRoomSession(response.data.session); onEnter(response.data.view, response.data.session.playerId)
   }
   const run = (action: EntryAction) => connect(() => action.kind === 'create'
     ? socket.timeout(REQUEST_TIMEOUT_MS).emit('room:create', { name, gameLanguage }, entered(name))
@@ -448,7 +450,7 @@ function WordBand({ pauseLabel, playLabel }: { pauseLabel: string; playLabel: st
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
 
 function readStoredName() {
-  try { return localStorage.getItem('hangman-name') ?? '' } catch { return '' }
+  return readStored('hangman-name') ?? ''
 }
 
 function ModeCard({ tone, href, onClick, title, body, action, art }: { tone: 'mar' | 'safra' | 'oliva' | 'paper'; href: string; onClick: ReturnType<typeof route>; title: string; body: string; action: string; art: ReactNode }) {

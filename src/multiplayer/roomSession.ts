@@ -1,5 +1,6 @@
 import type { Ack, PlayerGameView, RoomSession } from '../../shared/protocol'
 import { shouldResumeRoomSession } from './invitations'
+import { browserStorage } from '../storage'
 
 /**
  * Room credentials live in localStorage, so a refresh, a reopened tab or a mobile tab the browser discarded can rejoin
@@ -14,9 +15,17 @@ const ROOM_CODE = /^[A-Z2-9]{5}$/
 type StoredRoomSession = RoomSession & { version: number }
 export type SessionStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
-export function browserStorage(): SessionStorage | null {
-  try { return window.localStorage } catch { return null }
-}
+/** Used once the browser refuses to store credentials (blocked or full storage): a dropped connection can still rejoin
+ from this page, but a refresh, a reopened tab or another tab cannot. */
+const pageMemory: SessionStorage = (() => {
+  const values = new Map<string, string>()
+  return { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value) }, removeItem: (key) => { values.delete(key) } }
+})()
+let persistent = true
+/** Where this page keeps room credentials: localStorage, or page memory after the browser refused them. */
+export function roomStorage(): SessionStorage { return (persistent && browserStorage()) || pageMemory }
+/** False when the credentials only live in this page, so a refresh would lose the room. */
+export const roomSessionPersisted = () => roomStorage() !== pageMemory
 /** Before credentials moved to localStorage, the same key held an unversioned session per tab in sessionStorage. */
 export function legacyBrowserStorage(): SessionStorage | null {
   try { return window.sessionStorage } catch { return null }
@@ -32,7 +41,7 @@ const read = (storage: SessionStorage | null) => {
 
 /** Credentials stay valid until the player leaves or the server rejects them; there is no client-side expiry. A valid
  legacy sessionStorage session is moved here once when localStorage holds none. */
-export function loadRoomSession(storage = browserStorage(), legacy = legacyBrowserStorage()): RoomSession | null {
+export function loadRoomSession(storage: SessionStorage | null = roomStorage(), legacy = legacyBrowserStorage()): RoomSession | null {
   const stored = read(storage)
   const current = stored?.version === ROOM_SESSION_VERSION ? validSession(stored) : null
   if (current) return current
@@ -43,13 +52,24 @@ export function loadRoomSession(storage = browserStorage(), legacy = legacyBrows
   return migrated
 }
 
-export function saveRoomSession(session: RoomSession, storage = browserStorage()) {
-  const stored: StoredRoomSession = { version: ROOM_SESSION_VERSION, roomCode: session.roomCode, playerId: session.playerId, reconnectToken: session.reconnectToken }
-  try { storage?.setItem(ROOM_SESSION_KEY, JSON.stringify(stored)) } catch { /* the room still works; only reopening cannot rejoin */ }
+/** True when the session survives a refresh. Otherwise the room still works from page memory, and no older room's
+ credentials are left behind for a refresh to resume. */
+export function saveRoomSession(session: RoomSession, storage: SessionStorage | null = roomStorage()) {
+  const stored = JSON.stringify({ version: ROOM_SESSION_VERSION, roomCode: session.roomCode, playerId: session.playerId, reconnectToken: session.reconnectToken } satisfies StoredRoomSession)
+  try {
+    if (!storage) throw new Error('storage-unavailable')
+    storage.setItem(ROOM_SESSION_KEY, stored)
+    return storage !== pageMemory
+  } catch {
+    try { storage?.removeItem(ROOM_SESSION_KEY) } catch { /* nothing readable is left to resume */ }
+    persistent = false
+    pageMemory.setItem(ROOM_SESSION_KEY, stored)
+    return false
+  }
 }
 
 /** Clears both stores, so a legacy copy can never bring a room back after leaving. */
-export function clearRoomSession(storage = browserStorage(), legacy = legacyBrowserStorage()) {
+export function clearRoomSession(storage: SessionStorage | null = roomStorage(), legacy = legacyBrowserStorage()) {
   for (const store of [storage, legacy]) try { store?.removeItem(ROOM_SESSION_KEY) } catch { /* nothing stored */ }
 }
 
@@ -64,7 +84,7 @@ export function entryDecision(session: RoomSession | null, action: EntryAction):
 export type AbandonSocket = { timeout(ms: number): { emit(event: 'room:abandon', session: RoomSession, ack: (error: Error | null, reply: Parameters<Ack>[0]) => void): unknown } }
 /** Gives up a stored seat after the player confirmed it. Resolves `left` once the server removed it (or no longer knows
  it), clearing the credentials only if they are still these; `failed` keeps everything, so nothing is lost. */
-export function abandonRoomSession(socket: AbandonSocket, session: RoomSession, timeoutMs: number, storage = browserStorage(), legacy = legacyBrowserStorage()) {
+export function abandonRoomSession(socket: AbandonSocket, session: RoomSession, timeoutMs: number, storage: SessionStorage | null = roomStorage(), legacy = legacyBrowserStorage()) {
   return new Promise<'left' | 'failed'>((resolve) => {
     socket.timeout(timeoutMs).emit('room:abandon', session, (error, reply) => {
       if (error || (!reply.ok && !DEFINITIVE_RESUME_ERRORS.includes(reply.error))) { resolve('failed'); return }
@@ -119,7 +139,7 @@ export type RoomRestorer = {
  * The single owner of room restoration: one resume per connection, late replies ignored, credentials cleared only when
  * the server definitively rejects them. Socket.IO's own reconnection brings the transport back; every `connect` resumes.
  */
-export function createRoomRestorer({ socket, storage = browserStorage, legacyStorage = legacyBrowserStorage, invitation, timeoutMs, onStatus, onRestored, onInvalid }: {
+export function createRoomRestorer({ socket, storage = roomStorage, legacyStorage = legacyBrowserStorage, invitation, timeoutMs, onStatus, onRestored, onInvalid }: {
   socket: RestoreSocket
   storage?: () => SessionStorage | null
   legacyStorage?: () => SessionStorage | null

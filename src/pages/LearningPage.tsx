@@ -12,24 +12,23 @@ import { applyLearningGuess, createLearningRound } from '../learning/game'
 import { learningTranslations } from '../learning/i18n'
 import { acknowledge, currentWordId, readLearning, recordFinish, replaySession, reviewSession, saveGuesses, startSession, toggleBookmark, unitStats, writeLearning } from '../learning/progress'
 import type { LearningProgress, UnitSession, UnitStats } from '../learning/progress'
+import { browserStorage } from '../storage'
 import type { LearningUnit } from '../learning/types'
 import { emblemUrl, illustrationUrl, learningUnits, unitTitle } from '../learning/units'
 
 type Props = { language: Language; units?: readonly LearningUnit[]; unitId: string | null; onUnit: (unitId: string | null) => void }
 type Change = (progress: LearningProgress) => LearningProgress
 
-const storage = () => { try { return window.localStorage } catch { return null } }
-
 /** Units → play → vocabulary card → summary. Everything is saved on every change, so leaving never loses progress. */
 export function LearningPage({ language, units = learningUnits, unitId, onUnit }: Props) {
   const t = learningTranslations[language]
-  const [progress, setProgress] = useState(() => readLearning(storage(), units))
+  const [progress, setProgress] = useState(() => readLearning(browserStorage(), units))
   const progressRef = useRef(progress)
   const commit = useCallback((change: Change) => {
     const next = change(progressRef.current)
     if (next === progressRef.current) return
     progressRef.current = next
-    writeLearning(storage(), next)
+    writeLearning(browserStorage(), next)
     setProgress(next)
   }, [])
   const unit = units.find((item) => item.id === unitId)

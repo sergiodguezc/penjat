@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { once } from 'node:events'
 import { spawn } from 'node:child_process'
+import net from 'node:net'
 import { io } from 'socket.io-client'
 
 const sitemap = await readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8')
@@ -127,13 +128,26 @@ try {
     ['/es', '/'], ['/es/', '/'], ['/es/multijugador?sala=ABCDE', '/multijugador/?sala=ABCDE'],
     ['/es/aprendre/', '/aprendre/'], ['/es/como-jugar/?x=1', '/com-es-juga/?x=1'],
     ['/es/missing', '/missing/'],
+    // Repeated slashes and backslashes never produce a protocol-relative (other-site) location.
+    ['/es//evil.com', '/evil.com/'], ['/es///evil.com/?next=1', '/evil.com/?next=1'], ['/es/\\evil.com', '/evil.com/'],
+    ['/es//aprendre', '/aprendre/'], ['/es//\\/evil.com//', '/evil.com/'], ['/es/%2F%2Fevil.com', '/%2F%2Fevil.com/'],
   ]) {
     for (const method of ['GET', 'HEAD']) {
       const response = await fetch(`${origin}${path}`, { method, redirect: 'manual' })
       assert.equal(response.status, 308, path)
-      assert.equal(response.headers.get('location'), location)
+      const target = response.headers.get('location')
+      assert.equal(target, location, path)
+      assert.match(target, /^\/(?![/\\])/, `${path} redirects within the site`)
+      assert.equal(new URL(target, origin).origin, origin, path)
       assert.equal(await response.text(), '')
     }
+  }
+  // A request target the URL parser rejects gets 400 and the process keeps serving (it used to exit).
+  for (const target of ['http://[', 'http://exa mple', 'http://:99999/']) {
+    const status = await rawRequest(`GET ${target} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n`)
+    assert.match(status, /^HTTP\/1\.1 400 /, target)
+    assert.equal(server.exitCode, null, `${target} did not stop the server`)
+    assert.equal((await fetch(`${origin}/health`)).status, 200, `health after ${target}`)
   }
   for (const path of ['/', '/missing', '/assets/missing.js', '/es/']) {
     const response = await fetch(`${origin}${path}`, { method: 'POST' })
@@ -180,6 +194,18 @@ async function fetchText(url) {
   const response = await fetch(url)
   assert.equal(response.status, 200)
   return response.text()
+}
+
+/** Sends bytes the fetch API would refuse to produce and resolves with the response status line. */
+function rawRequest(bytes) {
+  return new Promise((resolve, reject) => {
+    const connection = net.connect(port, '127.0.0.1', () => connection.write(bytes))
+    let reply = ''
+    connection.on('data', (chunk) => { reply += chunk })
+    connection.on('end', () => resolve(reply.split('\r\n')[0]))
+    connection.on('error', reject)
+    connection.setTimeout(3000, () => { connection.destroy(); reject(new Error('raw request timed out')) })
+  })
 }
 
 async function checkHead(path, status, contentType) {

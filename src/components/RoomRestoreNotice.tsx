@@ -1,5 +1,5 @@
 import type { Language } from '../../shared/game'
-import { loadRoomSession, lostSeatNotice, type RestoreStatus } from '../multiplayer/roomSession'
+import { loadRoomSession, lostSeatNotice, roomSessionPersisted, type RestoreStatus } from '../multiplayer/roomSession'
 import { multiplayerTranslations } from '../multiplayer/i18n'
 
 type Props = { language: Language; status: Exclude<RestoreStatus, 'idle'>; roomCode: string | null; lostToken: string | null; onRetry: () => void; onLeave: () => void; onDismiss: () => void }
@@ -38,4 +38,10 @@ export function SelfConnectionNotice({ language, status, onRetry }: { language: 
     {status === 'restoring' ? t.selfReconnecting : t.selfReconnectFailed}
     {status === 'failed' && <button type="button" className="text-button" onClick={onRetry}>{t.restoreRetry}</button>}
   </div>
+}
+
+/** The browser refused to store the room credentials: the room works, but a refresh or a closed tab cannot rejoin it. */
+export function UnsavedSessionNotice({ language }: { language: Language }) {
+  if (roomSessionPersisted()) return null
+  return <div className="connection-notice" role="status">{multiplayerTranslations[language].sessionNotSaved}</div>
 }
