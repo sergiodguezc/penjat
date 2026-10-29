@@ -25,7 +25,7 @@
     "test:match": "node scripts/match-features-test.mjs",
     "test:n-player": "node scripts/n-player-test.mjs",
     "test:absence": "node scripts/absence-test.mjs",
-    "test:connection": "tsx --tsconfig tsconfig.app.json tests/connection-test.ts",
+    "test:connection": "PENJAT_ROOM_CREATION_REQUESTS=1000 tsx --tsconfig tsconfig.app.json tests/connection-test.ts",
     "test:seat-lifecycle": "PENJAT_ROOM_CREATION_REQUESTS=1000 tsx --tsconfig tsconfig.app.json tests/seat-lifecycle-test.ts",
     "test:entry-race": "tsx --tsconfig tsconfig.app.json tests/entry-ack-race-test.ts",
     "test:reconnect": "PENJAT_ROOM_CREATION_REQUESTS=1000 tsx --tsconfig tsconfig.app.json tests/reconnect-test.ts",

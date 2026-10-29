@@ -1,74 +1,80 @@
-# Resource-limit implementation verification
+# Resource-limit release verification
 
-Branch: `feat/resource-limits`, based on a fresh clone of main at `c17cc425efef1255acd7bef58f8405059d7d6be4`.
+Status: **all requested local verification passed**, 2026-10-29. Earlier sandbox failures are superseded by the completed elevated run below. No test is being counted as passed merely because it was blocked previously.
 
-The original workspace's `.git` directory was read-only. Implementation and the commit live in `/tmp/penjat-resource-limits`; the original worktree, including its unrelated `.gitignore` change and untracked local files, was left untouched. No push or deployment was performed.
+## Repository and environment
 
-## Passed
+- Durable checkout: `/home/sergiodguezc/work/games/penjat/verification/resource-limits`, branch `feat/resource-limits`.
+- Backup reference: `backup/resource-limits-cf6a4c0`, retaining `cf6a4c0ad1ce5e622b565a474e1eacfe1a1eba4b` and original implementation `714a6effe3831b47fb8062b15fbce6091e6d591d`. The original temporary clone was not changed.
+- Successfully fetched `origin/main`: `c17cc425efef1255acd7bef58f8405059d7d6be4`, already an ancestor of this branch. No upstream changes or conflict resolution were needed.
+- Node 24.22.1, npm 11.19.1, headless Firefox 158.0.1 on Linux.
+- Initial sandbox probe reproduced localhost `EPERM`. An approved elevated probe confirmed TCP binding and npm/GitHub DNS; installation and socket-dependent verification then ran outside the sandbox.
+- `npm ci` succeeded: 73 packages installed, 74 audited, zero vulnerabilities. `node_modules` is a real local directory, not a symlink or a copy from another checkout. No dependency or lockfile change was needed. npm emitted an esbuild install-script approval advisory; the production build and all suites succeeded with the normal clean installation.
+- The parent workspace's unrelated tracked/untracked work and current branch remain untouched. No push, Render deployment or production request was performed.
 
-- Node 24.22.1.
-- `npm run build`: production client and server build; tracked generated `dist-server` reviewed with source. Vite reports the pre-existing client chunk over 500 kB warning.
-- `npm run build:server` after the final creation-handler guard/IP capture change. No client code changed after the full production build.
-- `npm run lint`.
-- `npx tsc -b --pretty false` and `npx tsc -p server/tsconfig.json --noEmit`.
-- `node tests/resource-limits-test.mjs`: source/compiled configuration agreement, frozen object, every environment override and lower/upper bound, invalid/missing/unknown settings, missing/broken JSON, invalid startup diagnostic, limiter exact boundaries and automatic fake-clock cleanup, bounded storage/no eviction, independent IP quotas, spoofed forwarding headers, mapped/canonical IPs, room-capacity rejection before seat release, solo replacement, retained seats/resume, expiry and explicit departure.
-- `npm run test:game`, `test:chat`, `test:lifecycle`, `test:match`, `test:n-player`, `test:absence`.
-- Existing localization (including new CA/ES error mappings), invitation and multiplayer UI suites, run with `TSX_TSCONFIG_PATH=tsconfig.app.json node --import tsx tests/<suite>` to avoid the tsx CLI's IPC listener.
-- `git diff --check`.
+## Required suites
 
-The lifecycle code-uniqueness fixture now explicitly permits its existing 200 rooms; it does not change the production cap. Network-heavy reconnect, lobby-settings and seat-lifecycle scripts explicitly override the creation quota to avoid coupling many unrelated scenarios to a single localhost IP budget. The new limit integration suite uses the real five-request quota.
+Every suite below completed with exit status 0.
 
-## Blocked / unverified
-
-The sandbox denies socket listeners with `listen EPERM`, including localhost TCP and the tsx CLI's Unix IPC listener. Consequently:
-
-- `npm run test:limits`: the unit portion passes; the new live HTTP/Socket.IO portion cannot bind port 3244. Its assertions cover ten shared-IP players, mixed polling/WebSocket transports, header spoofing, quotas/status/Retry-After/HEAD, room replacement and seat preservation, resume, chat and active gameplay, but have not run here.
-- `npm run test:reconnect`, `test:lobby-settings`, `test:seat-lifecycle`: attempted; tsx IPC denied. Retried using the equivalent `node --import tsx` runner and the scripts' quota override; backend TCP listeners were also denied. The seat-lifecycle synchronous domain assertions ran before its listener failure; the complete suite is unverified.
-- No live Render edge-header check was performed. Proxy trust relies on Render's documented Cloudflare public ingress and Cloudflare's overwritten CF-Connecting-IP header; alternative ingress paths must not bypass that boundary. See the linked primary sources and assumptions in [resource limits](resource-limits.md).
-
-`npm ci` failed during esbuild's binary validation with sandbox `spawnSync ... EPERM`; verification used a symlink to the existing workspace dependencies. No dependency was added or changed. No memory benchmarks, stress tests, broad browser/SEO/E2E suites, automatic scaling, push or deployment were run.
-
-## Follow-up verification attempt (2026-10-29)
-
-Release verification is **incomplete**. The current session still denies localhost listeners and outbound localhost connections, and provides no permission escalation or unrestricted execution host. The original temporary clone and commit `714a6effe3831b47fb8062b15fbce6091e6d591d` remain unchanged.
-
-A separate, normal Git clone with its own copied objects and writable `.git` now lives at `/home/sergiodguezc/work/games/penjat/verification/resource-limits`, branch `feat/resource-limits`. It has no symlinked or borrowed `node_modules`. Its remote points to the original GitHub repository. The original workspace's unrelated files and branch were not changed; only this new `verification/` directory was added. This preserves the implementation outside `/tmp` without claiming that the release gate passed.
-
-Fetching current main failed: SSH rejects the system SSH configuration permissions; HTTPS cannot resolve `github.com`. Consequently the durable branch is based on the last-known main, `c17cc425efef1255acd7bef58f8405059d7d6be4`; freshness against current `origin/main` remains unverified. No rebase was attempted against an unverified ref.
-
-### Test correction
-
-Inspection found that the unrun integration suite expected HTTP 200 for a ten-player room, although full-room previews correctly return 409. The test now previews a separate available room for 200, a guaranteed-absent code for 404, and the full/active room for HEAD 409 before checking GET/HEAD 429 and Retry-After. It also starts a round before capacity rejection, verifies that the active round survives, and performs a real disconnect/resume after quota exhaustion. These corrected live assertions remain unexecuted; syntax checking and focused lint passed. Backend behavior did not change.
-
-### Results from this follow-up
-
-| Command/check | Result |
+| Command | Evidence / scope |
 | --- | --- |
-| `npm run test:limits` | Unit portion passed; live portion blocked by `listen EPERM` on 127.0.0.1:3244 |
-| `npm run test:reconnect` | Blocked by tsx IPC `EPERM`; equivalent `node --import tsx` invocation reaches TCP `listen EPERM` on 3221 |
-| `npm run test:lobby-settings` | Blocked by tsx IPC `EPERM`; equivalent runner reaches TCP `listen EPERM` on 3231 |
-| `npm run test:seat-lifecycle` | Blocked by tsx IPC `EPERM`; equivalent runner executes synchronous domain assertions before TCP `listen EPERM` on 3231 |
-| `PORT=3002 HOST=127.0.0.1 DETERMINISTIC_FIRST_SETTER=1 npm start` | Production startup reaches TCP listen, then `EPERM` |
-| `TEST_SERVER_URL=http://127.0.0.1:3002 npm run test:e2e` | Blocked by localhost WebSocket `connect EPERM` |
-| `TEST_SERVER_URL=http://127.0.0.1:3002 BROWSER=firefox npm run test:browser:multiplayer` | Cannot connect to local Firefox BiDi endpoint on 9222; browser interactions unexecuted |
-| `TEST_SERVER_URL=http://127.0.0.1:3002 BROWSER=firefox npm run test:chat-browser` | Blocked by localhost backend health-request `connect EPERM`; browser interactions unexecuted |
-| `npm run test:chat` | Passed |
-| Chat inbox and sound suites | Passed using `TSX_TSCONFIG_PATH=tsconfig.app.json node --import tsx` |
-| `npm ci --cache /tmp/penjat-resource-verification-npm-cache` in the fresh durable checkout | Failed with npm registry DNS `EAI_AGAIN`; reproducible clean installation unverified |
-| Offline download-cache fallback | Copy exceeded disk quota; the copied cache was removed, preserving install logs. Offline install did not pass. No dependencies were borrowed for the durable checkout |
-| `npm run build` in the original temporary clone | Passed using its existing symlinked dependencies; known >500 kB client chunk warning remains. This is not clean-install verification |
-| `npm run lint`, both application/server TypeScript checks | Passed using existing dependencies in the temporary clone |
-| Corrected integration file `node --check`, focused lint, `git diff --check` | Passed |
-| Clean archived production configuration check | Passed: Git-tracked `package.json`, `config/limits.json` and compiled `dist-server/server/config.js` extracted to `/tmp/penjat-production-config-check`; Node with `NODE_ENV=production` loads and freezes JSON defaults and honors `PENJAT_MAX_ROOMS=123`, without any dependencies or symlinks |
+| `npm run test:limits` | JSON/source/compiled configuration, every override and bounds, invalid startup diagnostics, immutable settings, deterministic limiter boundaries/expiry/bounded storage, IP normalization/spoofing; live HTTP and Socket.IO quota behavior |
+| `npm run test:reconnect` | Stored credentials, refresh/reopen, transport drops, migration, takeover, invitations, retry and explicit departure |
+| `npm run test:lobby-settings` | Defaults, validation, host-only changes, member synchronization, start and restoration |
+| `npm run test:seat-lifecycle` | Seat replacement and preservation, timers/expiry, stale subscriptions/chat, retained seats, lost acknowledgements, match/results/rematch |
+| `npm run test:e2e` | Real independent Socket.IO clients, privacy, authorization, scoring, rotation, forgiveness and HTTP previews |
+| `npm run test:browser` | Real Firefox navigation, lazy socket lifecycle, storage and restoration, invitations, keyboard/dialogs, language/layout boundaries, terminal matches and results/rematch; no collected browser-console error assertion failed |
+| `npm run test:browser:multiplayer` | Four- and ten-player real matches with independent browser contexts and socket participants, live ranking/ties, reconnect, departure, chat, results and rematch |
+| `npm run test:chat-browser` | Real touch reactions, synchronization, unread/draft/history behavior, responsive chat sheet, silent restore, audio confirmation/cooldown/mute at 320, 390, 768, 1100 and 1440px widths |
 
-The archive check confirms inclusion and configuration resolution from the checkout root used by Render's `npm start`. It does not confirm an end-to-end clean Render build or a running service. Browser plugin is not available; the specifically requested repository Firefox suites were attempted. There are no browser screenshots, DOM, console or interaction results to claim. No production traffic, deployment, push, memory benchmark or stress test was used.
+The limits integration test uses one actual loopback IP across mixed polling/WebSocket connections, with different forged `CF-Connecting-IP` and `X-Forwarded-For` values. Ten players joined one room. Further creation was refused across sockets despite changed headers. Capacity refusal preserved the existing host seat and active guessing round; solo replacement fit without increasing room count. HTTP previews exercised 200, 404, 409, GET/HEAD 429, JSON error, Retry-After and bodyless HEAD. A player actually disconnected, resumed the same retained seat after creation/preview quotas were exhausted, and continued chat/gameplay.
 
-### Required before release
+### Isolation and fixture correction
 
-On a normal non-production host with Node 24, npm registry/GitHub access and localhost TCP/Unix socket permissions:
+E2E and the three browser suites each used a fresh production server on loopback ports 13401–13404. Each browser suite used its own temporary Firefox profile and BiDi endpoint (19402–19404). The runner stopped only its own server/browser process groups in `finally` cleanup. No personal browser profile was used. The Browser plugin is not available; the explicitly requested repository Firefox BiDi suites were used.
 
-1. Use the durable checkout. Preserve a backup branch before fetching and rebasing `feat/resource-limits` onto the freshly fetched `origin/main`; retain the original implementation commit through the backup. Resolve any conflicts and review the resulting diff. Do not use the temporary clone as the only copy.
-2. Run `npm ci`, `npm run build`, `npm run lint`, `npx tsc -b --pretty false`, `npx tsc -p server/tsconfig.json --noEmit`, then `npm run test:limits`, `npm run test:reconnect`, `npm run test:lobby-settings`, `npm run test:seat-lifecycle` and the existing chat domain/inbox/sound suites. Recheck the existing domain/UI suites if rebasing changes their connected code.
-3. For E2E, multiplayer browser and chat browser tests, use a **fresh dedicated local server for each suite**, not one server for all three: their combined creation requests would exceed the conservative default five-request IP quota. Start each with `PORT=3002 HOST=127.0.0.1 DETERMINISTIC_FIRST_SETTER=1 npm start`, run the selected suite with `TEST_SERVER_URL=http://127.0.0.1:3002`, then stop only that test server. Use a disposable Firefox profile/BiDi instance per the development docs for the two browser suites. Keep the real limits enabled; no capacity/load testing is required.
-4. Record actual pass/fail evidence, including the corrected full-room preview test, shared-IP joins, spoofed headers, active-game continuity, seat preservation and real disconnect/resume. Fix genuine regressions and commit any fixes. Keep release blocked until all requested suites pass with clean dependencies and the latest main base is verified.
-5. Review Render's existing environment overrides and public-ingress trust assumption without changing production. Keep the JSON file in the checkout, one instance/process and no duplicate limit defaults in `render.yaml`. After review, a human can explicitly authorize pushing/merging and deploying the verified SHA. Restart/redeployment resets in-memory rooms and quotas, so schedule the release with that lifecycle consequence understood. The rollback is the previously deployed SHA; rolling back also restarts the process.
+The full navigation audit deliberately creates many independent rooms, so its server used `PENJAT_ROOM_CREATION_REQUESTS=1000`. E2E, multiplayer-browser and chat-browser servers used JSON defaults. The limits integration suite retained the real five-request creation quota and explicitly used a two-room cap and three-request preview quota to test boundaries without load testing. Existing reconnect/lobby/seat suites retain their documented higher test-only creation quota.
+
+The remaining `test:connection` fixture initially failed because its multiple independent handshake/race scenarios exceeded five localhost creations. Its npm script now sets the same explicit `PENJAT_ROOM_CREATION_REQUESTS=1000` test override; the entire suite then passed. This fixes test isolation and does not change application behavior or production defaults. No other genuine test failure remained.
+
+## Remaining regressions and build checks
+
+All of these passed with the clean local installation:
+
+- `npm run build` (production client and server), `npm run lint`, `npx tsc -b --pretty false`, `npx tsc -p server/tsconfig.json --noEmit`.
+- `test:game`, `test:chat`, `test:lifecycle`, `test:match`, `test:n-player`, `test:absence`, `test:connection`, `test:entry-race`, `test:reconnection-notice`.
+- `test:chat-inbox`, `test:chat-sound`, `test:multiplayer-ui`, `test:match-results`, `test:storage`, `test:invitation`, `test:localization`, `test:navigation`.
+- `test:learning`, `test:vocabulary`, `test:daily`, `test:character`, `test:seasonal`, `test:seo` (its own local production server).
+- `git diff --check`; rebuilding left tracked `dist-server` unchanged, confirming generated server files match source.
+
+There were 31 successful npm test suites, plus production/configuration smoke checks. No corpus generation, paid enrichment, stress test or memory benchmark ran.
+
+## Render-style local production verification
+
+The clean checkout contains tracked `config/limits.json`; Render's existing `npm ci && npm run build` / `npm start` commands operate from that checkout root. There are no duplicate limits in `render.yaml`.
+
+An additional loopback-only smoke check started the actual `npm start` command using `RENDER=true`, `PENJAT_MAX_ROOMS=1`, `PENJAT_ROOM_CREATION_REQUESTS=1` and `PENJAT_ROOM_PREVIEW_REQUESTS=1`. It passed all of these:
+
+- Health, built HTML and a referenced JS asset return 200. The backend configuration is not exposed as a public frontend asset.
+- Environment overrides take effect in the compiled server: the second room is refused at capacity and repeated creation/preview requests are refused after one request rather than the JSON defaults.
+- Synthetic trusted-edge CF metadata gives independent IP buckets; changing only the untrusted X-Forwarded-For does not reset a quota. Different malformed CF values share the peer fallback.
+- Resume, join, match start, word setting and guessing work after refusals.
+
+The smoke process was stopped afterward. This models Render's documented public ingress locally; it does not claim that a real Cloudflare/Render request was inspected. Previous dependency-free archive checks also demonstrated that compiled configuration resolves the included JSON and applies overrides from a clean checkout root.
+
+## Evidence and remaining limits
+
+Raw E2E/browser results and logs: `/tmp/penjat-resource-final-verification/results.json`, `test-e2e.log`, `test-browser.log`, `test-browser-multiplayer.log`, `test-chat-browser.log`, their separate server/Firefox logs, and `render-config-smoke-server.log`.
+
+Screenshots: `/tmp/penjat-p0-validation/`, `/tmp/penjat-phase-2a-validation/`, `/tmp/penjat-phase-2d-multiplayer/firefox/`, `/tmp/penjat-chat-validation/firefox/`. These are temporary local artifacts, not committed assets.
+
+Known limits, not unresolved local test failures:
+
+- Render/Cloudflare header trust relies on the documented public-ingress topology. No production or deployed staging edge was contacted; an alternative ingress that preserves arbitrary CF headers must not bypass that trust boundary. See [resource limits](resource-limits.md).
+- Rooms, configuration and quotas belong to one process. Restarting loses rooms and resets counters; multiple instances require shared authoritative state, distributed limiting and Socket.IO routing/adapter work.
+- Browser checks use headless desktop Firefox with simulated viewport/touch input, not physical iOS/Android or additional engines. Firefox driver logs include animation-frame/shutdown warnings; all suite assertions completed successfully.
+- Vite still reports the known client chunk over 500 kB. Initial limits remain conservative values, not measured capacity estimates.
+
+## Recommended release procedure
+
+The branch is locally verified and ready for review. No manual terminal verification remains for the user. Review the final committed diff and explicitly authorize publishing/merging and deployment as a separate action. Before deployment, review any existing Render `PENJAT_` overrides: they take precedence over JSON. Keep one Node process/instance and the JSON file in the checkout; do not duplicate its defaults in `render.yaml`. Deploy only the reviewed SHA and schedule the restart with the loss of existing in-memory rooms understood. The rollback target is the previously deployed SHA; rollback also restarts the process. This verification did not publish, merge or deploy anything.
