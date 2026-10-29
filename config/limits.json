@@ -1,0 +1,8 @@
+{
+  "maxRooms": 100,
+  "roomCreationRequests": 5,
+  "roomCreationWindowSeconds": 600,
+  "roomPreviewRequests": 60,
+  "roomPreviewWindowSeconds": 60,
+  "rateLimiterMaxEntries": 10000
+}

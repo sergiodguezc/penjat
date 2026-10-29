@@ -1,3 +1,4 @@
+import { limits } from '../config.js';
 import { GameRoom } from './GameRoom.js';
 import { randomInt, randomUUID } from 'node:crypto';
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -30,6 +31,10 @@ export class GameManager {
      * leaves no orphaned room behind). `released` names the seat given up, for the caller to unsubscribe and notify.
      */
     create(socketId, name, language, voltes) {
+        const current = this.identityForSocket(socketId);
+        const replacesRoom = current?.room.activePlayers.length === 1;
+        if (this.rooms.size - (replacesRoom ? 1 : 0) >= (this.options.maxRooms ?? limits.maxRooms))
+            throw new Error('room-capacity-reached');
         const released = this.releaseSeat(socketId);
         let code = this.code();
         while (this.rooms.has(code))

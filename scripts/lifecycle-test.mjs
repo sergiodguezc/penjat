@@ -39,7 +39,7 @@ assert.equal(games.rooms.has(first.room.code), false)
   const realRandom = Math.random
   Math.random = () => 0
   try {
-    const codes = new GameManager(() => 0)
+    const codes = new GameManager(() => 0, { maxRooms: 200 })
     const seen = new Set()
     for (let index = 0; index < 200; index += 1) {
       const { room } = codes.create(`code-socket-${index}`, 'Ana', 'ca', 1)

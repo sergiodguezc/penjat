@@ -117,3 +117,8 @@ Open chat and expand **Diagnòstic del xat / Diagnóstico del chat**. **Prova el
 Clear the log, tap a message's reaction icon, then tap one emoji. Expected stages are native `pointerdown`/`touchend`/`click`, `reaction:activate`, `reaction:send`, `reaction:broadcast`, `reaction:rendered` and `reaction:ack` (broadcast/render/ack order may vary). `picker:dismiss` before click points to cancellation; no emoji-target events points to hit-testing; activation without send shows a guard; an unsuccessful ack shows server/connection failure; broadcast without rendered points to UI synchronization. Logs also show native targets versus hit-tested targets, audio engine state, notification eligibility, scheduling and failures.
 
 Logs are a bounded 80-line memory-only buffer. They exclude message contents, player names, room codes and session credentials. Long-press the log to select/copy it, or capture a screenshot. Reproduce one action after clearing so its lifecycle stays in the buffer. Native iPhone keyboard/toolbars, VoiceOver and actual speaker output still require physical-device testing.
+
+
+### Backend resource limits
+
+See [resource limits](resource-limits.md) for `config/limits.json`, all `PENJAT_` overrides, Render setup, proxy trust and restart requirements. Build the server before running `npm run test:limits`; it exercises configuration, boundaries, expiry, spoofed headers and normal multiplayer without load tests.

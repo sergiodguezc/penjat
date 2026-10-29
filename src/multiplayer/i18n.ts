@@ -22,6 +22,9 @@ const es = {
   incorrect: 'Letras incorrectas', none: 'Ninguna todavía', errors: 'Errores', next: 'Siguiente turno',
   winner: 'ha ganado el turno', roundComplete: 'Turno completado', matchComplete: 'Partida completada', wordWas: 'La palabra era', disconnected: 'Un jugador se ha desconectado',
   home: 'Volver al inicio', leave: 'Salir', invalidWord: 'Introduce una palabra válida de hasta 50 caracteres.',
+  roomCapacityReached: 'El servidor tiene todas las salas ocupadas. Vuelve a intentarlo más tarde.',
+  roomCreationRateLimited: 'Se han solicitado demasiadas salas desde tu conexión. Espera unos minutos y vuelve a intentarlo.',
+  roomPreviewRateLimited: 'Se han consultado demasiadas invitaciones desde tu conexión. Espera un momento y vuelve a intentarlo.',
   roomNotFound: 'La sala no existe.', roomFull: 'La sala está llena.', invalidDetails: 'Revisa el nombre y el código.',
   connectionError: 'No se ha podido conectar con el servidor. Inténtalo de nuevo en unos instantes.', keyboard: 'Teclado de letras', share: 'Comparte este código',
   finalErrorSetter: 'Un jugador ha llegado al último error.', forgivenessQuestion: '¿Quieres perdonarle la vida?',
@@ -136,6 +139,9 @@ const ca: typeof es = {
   incorrect: 'Lletres incorrectes', none: 'Cap encara', errors: 'Errors', next: 'Torn següent',
   winner: 'ha guanyat el torn', roundComplete: 'Torn completat', matchComplete: 'Partida completada', wordWas: 'La paraula era', disconnected: 'Un jugador s’ha desconnectat',
   home: "Torna a l'inici", leave: 'Surt', invalidWord: 'Escriu una paraula vàlida de 50 caràcters com a màxim.',
+  roomCapacityReached: 'El servidor té totes les sales ocupades. Torna-ho a provar més tard.',
+  roomCreationRateLimited: 'S’han demanat massa sales des de la teva connexió. Espera uns minuts i torna-ho a provar.',
+  roomPreviewRateLimited: 'S’han consultat massa invitacions des de la teva connexió. Espera un moment i torna-ho a provar.',
   roomNotFound: 'La sala no existeix.', roomFull: 'La sala és plena.', invalidDetails: 'Revisa el nom i el codi.',
   connectionError: "No s'ha pogut connectar al servidor. Torna-ho a provar d'aquí a uns instants.", keyboard: 'Teclat de lletres', share: 'Comparteix aquest codi',
   finalErrorSetter: 'Un jugador ha arribat a l’últim error.', forgivenessQuestion: 'Vols perdonar-li la vida?',
@@ -232,6 +238,8 @@ export type MultiplayerTranslations = typeof es
 
 export function errorMessage(code: string, t: MultiplayerTranslations) {
   const messages: Record<string, string> = {
+    'room-capacity-reached': t.roomCapacityReached, 'room-creation-rate-limited': t.roomCreationRateLimited,
+    'room-preview-rate-limited': t.roomPreviewRateLimited,
     'room-not-found': t.roomNotFound, 'room-full': t.roomFull, 'invalid-details': t.invalidDetails,
     'invalid-invitation': t.invitationInvalid, 'preview-load-failed': t.invitationLoadFailed,
     'invalid-word': t.invalidWord, 'connect_error': t.connectionError,

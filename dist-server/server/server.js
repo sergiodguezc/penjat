@@ -4,9 +4,14 @@ import { extname, resolve, sep } from 'node:path';
 import { Server } from 'socket.io';
 import { ALPHABETS } from '../shared/game.js';
 import { DEFAULT_VOLTES, SUPPORTED_VOLTES } from '../shared/protocol.js';
+import { limits } from './config.js';
+import { RateLimiter } from './RateLimiter.js';
+import { clientIp } from './clientIp.js';
 import { GameManager } from './game/GameManager.js';
 import { normalizeRoute } from '../shared/routing.js';
 import { notFoundTranslations } from '../shared/notFound.js';
+const creationLimiter = new RateLimiter(limits.roomCreationRequests, limits.roomCreationWindowSeconds * 1000, limits.rateLimiterMaxEntries);
+const previewLimiter = new RateLimiter(limits.roomPreviewRequests, limits.roomPreviewWindowSeconds * 1000, limits.rateLimiterMaxEntries);
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN;
@@ -70,6 +75,12 @@ const httpServer = createServer(async (request, response) => {
             response.end(request.method === 'HEAD' ? undefined : JSON.stringify({ ok: false, error: 'method-not-allowed' }));
             return;
         }
+        const quota = previewLimiter.consume(clientIp(request));
+        if (!quota.allowed) {
+            response.writeHead(429, { 'Retry-After': String(quota.retryAfterSeconds) });
+            response.end(request.method === 'HEAD' ? undefined : JSON.stringify({ ok: false, error: 'room-preview-rate-limited' }));
+            return;
+        }
         const result = roomPreview(previewMatch[1]);
         response.writeHead(result.ok ? 200 : result.error === 'room-full' ? 409 : 404);
         response.end(request.method === 'HEAD' ? undefined : JSON.stringify(result));
@@ -130,6 +141,7 @@ const httpServer = createServer(async (request, response) => {
         response.end(request.method === 'HEAD' ? undefined : error instanceof URIError ? 'Not found' : 'Frontend build unavailable. Run npm run build before starting the server.');
     }
 });
+httpServer.on('close', () => { creationLimiter.close(); previewLimiter.close(); });
 const localDevelopmentOrigins = [/^http:\/\/(localhost|127\.0\.0\.1):\d+$/];
 const allowedOrigins = CLIENT_ORIGIN || (IS_PRODUCTION ? undefined : localDevelopmentOrigins);
 const io = new Server(httpServer, {
@@ -170,6 +182,7 @@ const roomPreview = (rawCode) => {
 };
 io.on('connection', (socket) => {
     console.info('socket connected', { socketId: socket.id });
+    const ip = clientIp(socket.request);
     const broadcast = broadcastRoom;
     /** The seat this connection gave up for another one: stop its room's messages here and tell the members still there. */
     const leavePrevious = (released, nextCode) => {
@@ -194,16 +207,26 @@ io.on('connection', (socket) => {
         }
     };
     socket.on('room:create', (payload, ack) => {
+        const quota = creationLimiter.consume(ip);
+        if (typeof ack !== 'function')
+            return;
+        if (!quota.allowed)
+            return ack({ ok: false, error: 'room-creation-rate-limited' });
         const name = cleanName(payload?.name);
         const settings = cleanSettings(payload, { language: 'ca', voltes: DEFAULT_VOLTES });
         if (!name || !settings)
             return ack({ ok: false, error: 'invalid-details' });
-        const { room, playerId, reconnectToken, released } = games.create(socket.id, name, settings.language, settings.voltes);
-        leavePrevious(released, room.code);
-        socket.join(room.code);
-        ack({ ok: true, data: { view: room.viewFor(playerId), session: { roomCode: room.code, playerId, reconnectToken } } });
-        socket.emit('chat:history', room.chatHistory);
-        console.info('player created room', { roomCode: room.code, playerId, socketId: socket.id });
+        try {
+            const { room, playerId, reconnectToken, released } = games.create(socket.id, name, settings.language, settings.voltes);
+            leavePrevious(released, room.code);
+            socket.join(room.code);
+            ack({ ok: true, data: { view: room.viewFor(playerId), session: { roomCode: room.code, playerId, reconnectToken } } });
+            socket.emit('chat:history', room.chatHistory);
+            console.info('player created room', { roomCode: room.code, playerId, socketId: socket.id });
+        }
+        catch (error) {
+            ack({ ok: false, error: error instanceof Error ? error.message : 'unknown-error' });
+        }
     });
     socket.on('room:join', (payload, ack) => {
         const name = cleanName(payload?.name);

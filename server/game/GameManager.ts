@@ -1,3 +1,4 @@
+import { limits } from '../config.js'
 import type { Language } from '../../shared/game.js'
 import { GameRoom } from './GameRoom.js'
 import { randomInt, randomUUID } from 'node:crypto'
@@ -12,6 +13,7 @@ export const EMPTY_ROOM_TTL_MS = 30 * 60_000
 type Timer = unknown
 export type Scheduler = { setTimeout(callback: () => void, ms: number): Timer; clearTimeout(timer: Timer): void }
 export type GameManagerOptions = {
+  maxRooms?: number
   absenceGraceMs?: number
   emptyRoomTtlMs?: number
   scheduler?: Scheduler
@@ -43,6 +45,9 @@ export class GameManager {
    * leaves no orphaned room behind). `released` names the seat given up, for the caller to unsubscribe and notify.
    */
   create(socketId: string, name: string, language: Language, voltes: Voltes) {
+    const current = this.identityForSocket(socketId)
+    const replacesRoom = current?.room.activePlayers.length === 1
+    if (this.rooms.size - (replacesRoom ? 1 : 0) >= (this.options.maxRooms ?? limits.maxRooms)) throw new Error('room-capacity-reached')
     const released = this.releaseSeat(socketId)
     let code = this.code()
     while (this.rooms.has(code)) code = this.code()

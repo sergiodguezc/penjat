@@ -12,7 +12,7 @@ import { getDailyChallenge } from '../src/daily/challenge'
 import { dailyTranslations } from '../src/daily/i18n'
 import { homeTranslations } from '../src/home/i18n'
 import { seasonalTranslations } from '../src/seasonal/i18n'
-import { multiplayerTranslations } from '../src/multiplayer/i18n'
+import { errorMessage, multiplayerTranslations } from '../src/multiplayer/i18n'
 import { ALPHABETS, isCorrectGuess } from '../shared/game'
 
 const storage = (value: string | null) => ({ getItem: (key: string) => key === INTERFACE_LANGUAGE_STORAGE_KEY ? value : null })
@@ -171,3 +171,13 @@ try {
   else Reflect.deleteProperty(globalThis, 'localStorage')
 }
 console.log('Localization routing and homepage semantic markup checks passed')
+
+// Resource-limit errors have explicit retry guidance in both interface languages.
+for (const language of ['ca', 'es'] as const) {
+  const t = multiplayerTranslations[language]
+  for (const code of ['room-capacity-reached', 'room-creation-rate-limited', 'room-preview-rate-limited']) {
+    const message = errorMessage(code, t)
+    assert.ok(message.length > 0)
+    assert.notEqual(message, t.connectionError, code)
+  }
+}
