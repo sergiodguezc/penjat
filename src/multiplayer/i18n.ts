@@ -115,6 +115,7 @@ const es = {
   iosInstallAddHome: '«Añadir a pantalla de inicio»',
   iosInstallAdd: '«Añadir»',
   iosInstallOutro: 'Después podrás abrir Penjat directamente desde la pantalla de inicio.',
+  iosInstallOffline: 'Para jugar a «Pasa el móvil» sin conexión, abre Penjat una vez desde la pantalla de inicio con conexión y espera el mensaje «Listo para jugar sin conexión». La app instalada guarda sus datos aparte de Safari.',
 }
 
 const ca: typeof es = {
@@ -231,6 +232,7 @@ const ca: typeof es = {
   iosInstallAddHome: '«Afegeix a la pantalla d’inici»',
   iosInstallAdd: '«Afegeix»',
   iosInstallOutro: 'Després podràs obrir Penjat directament des de la pantalla d’inici.',
+  iosInstallOffline: 'Per jugar a «Passa el mòbil» sense connexió, obre Penjat un cop des de la pantalla d’inici amb connexió i espera el missatge «Llest per jugar sense connexió». L’app instal·lada desa les dades a part de Safari.',
 }
 
 export const multiplayerTranslations = { es, ca } satisfies Record<Language, typeof es>

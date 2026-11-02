@@ -20,6 +20,7 @@ import {
 import { createPrivacyGuard } from '../local/privacy'
 import { clearLocalMatch, readLocalMatch, writeLocalMatch } from '../local/storage'
 import { errorMessage, multiplayerTranslations } from '../multiplayer/i18n'
+import { useOfflineReadiness } from '../pwa/offline'
 import { matchOutcome, matchStandings, outcomeCopy } from '../multiplayer/matchResults'
 
 type Props = { language: Language; gameLanguage: Language; onHome: () => void; onUnsavedChange: (unsaved: boolean) => void }
@@ -337,6 +338,7 @@ function Setup({ language, gameLanguage, saved, notice, onResume, onAbandon, onS
   const [settings, setSettings] = useState<{ gameLanguage: Language; voltes: Voltes }>({ gameLanguage, voltes: DEFAULT_VOLTES })
   const [error, setError] = useState<LocalSetupError | null>(null)
   const [created, setCreated] = useState<LocalMatch | null>(null)
+  const offline = useOfflineReadiness()
   const inputs = useRef(new Map<number, HTMLInputElement>())
   const focusKey = useRef<number | null>(null)
   useEffect(() => { if (focusKey.current !== null) { inputs.current.get(focusKey.current)?.focus(); focusKey.current = null } }, [rows])
@@ -355,6 +357,7 @@ function Setup({ language, gameLanguage, saved, notice, onResume, onAbandon, onS
       <p className="page-eyebrow page-eyebrow--mar">{mt.multiplayerMode}</p>
       <h1>{l.title}. <em>{l.setupAccent}</em></h1>
       <p className="local-lede">{l.setupLede}</p>
+      {offline !== 'unsupported' && <p className={`offline-status is-${offline}`} role="status"><span aria-hidden="true">{offline === 'ready' ? '✓' : '·'}</span> {l.offline[offline]}</p>}
     </header>
     {notice && notice !== 'newer' && <p className="local-notice" role="status">{l[notice]}</p>}
     {saved ? <section className="setup local-resume" aria-labelledby="local-resume-title">

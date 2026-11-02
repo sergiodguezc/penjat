@@ -42,6 +42,10 @@ const copy = {
       title: 'Final de la partida',
       items: ['La classificació final mostra els punts de tots els participants, també dels qui han marxat.', 'Qui té més punts guanya; si diversos jugadors empaten, comparteixen el primer lloc.', 'La revenja comença quan tots els jugadors que continuen a la sala la demanen.'],
     },
+    local: {
+      title: 'Passa el mòbil',
+      items: ['Per jugar en grup amb un sol mòbil: escriviu els noms en l’ordre en què seieu.', 'Qui tria la paraula l’escriu en secret; després el mòbil passa d’un jugador a l’altre i cadascú l’endevina pel seu compte.', 'Abans de cada torn, una pantalla diu a qui s’ha de passar el mòbil: ningú més ha de mirar.', 'La puntuació i el perdó són els mateixos que en el multijugador. La partida es desa en aquest navegador i, un cop preparat, el joc funciona sense internet.'],
+    },
     learn: {
       title: 'Aprèn vocabulari',
       items: ['Es juga en solitari, per unitats temàtiques de 12 paraules.', 'Cada paraula té una pista en castellà.', 'Quan acabes una paraula, veus el significat, un exemple i la traducció.', 'El progrés es desa en aquest navegador: pots continuar més tard, repassar les paraules fallades o tornar a jugar la unitat.'],
@@ -85,6 +89,10 @@ const copy = {
       title: 'Final de la partida',
       items: ['La clasificación final muestra los puntos de todos los participantes, también de quienes se han ido.', 'Gana quien tiene más puntos; si varios jugadores empatan, comparten el primer puesto.', 'La revancha empieza cuando todos los jugadores que siguen en la sala la piden.'],
     },
+    local: {
+      title: 'Pasa el móvil',
+      items: ['Para jugar en grupo con un solo móvil: escribid los nombres en el orden en que estáis sentados.', 'Quien elige la palabra la escribe en secreto; después el móvil pasa de un jugador a otro y cada uno la adivina por su cuenta.', 'Antes de cada turno, una pantalla indica a quién hay que pasar el móvil: nadie más debe mirar.', 'La puntuación y el perdón son los mismos que en el multijugador. La partida se guarda en este navegador y, una vez preparado, el juego funciona sin internet.'],
+    },
     learn: {
       title: 'Aprende vocabulario',
       items: ['Se juega en solitario, por unidades temáticas de 12 palabras.', 'Cada palabra tiene una pista en español.', 'Al terminar una palabra, ves el significado, un ejemplo y la traducción.', 'El progreso se guarda en este navegador: puedes continuar más tarde, repasar las palabras falladas o volver a jugar la unidad.'],
@@ -107,6 +115,7 @@ const copy = {
   forgiveness: { title: string; items: string[] }
   leaving: { title: string; items: string[] }
   matchEnd: { title: string; items: string[] }
+  local: { title: string; items: string[] }
   daily: { title: string; items: string[] }
   learn: { title: string; items: string[] }
 }>
@@ -141,6 +150,7 @@ export function HowToPlayPage({ language, onNavigate }: Props) {
           {section(t.forgiveness)}
           {section(t.leaving)}
           {section(t.matchEnd)}
+          {section(t.local, 'mar', { href: '/passa-el-mobil', route: '/passa-el-mobil/' })}
           {section(t.learn, 'oliva', { href: '/aprendre', route: '/aprendre/' })}
           {section(t.daily, 'safra', { href: '/paraula-del-dia', route: '/paraula-del-dia/' })}
         </div>

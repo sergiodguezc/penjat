@@ -1287,3 +1287,6 @@ body { background-image: radial-gradient(oklch(0.2 0.015 60 / 5%) .7px, transpar
   .local-page { padding-inline: calc(env(safe-area-inset-left, 0px) + var(--space-6)) calc(env(safe-area-inset-right, 0px) + var(--space-6)); }
   .handoff { padding-inline: var(--space-10); }
 }
+.offline-status { display: inline-flex; gap: var(--space-2); align-items: baseline; margin: var(--space-3) 0 0; color: var(--text-muted); font-size: var(--text-meta); line-height: var(--leading-ui); }
+.offline-status.is-ready { color: var(--ink); font-weight: var(--weight-semibold); }
+.offline-status.is-ready > span { color: var(--success); }

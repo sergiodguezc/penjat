@@ -73,6 +73,10 @@ Daily storage (`penjat-daily-challenge`) stores one date's guesses/result; resto
 
 Socket.IO uses one singleton with `autoConnect: false`. `App` connects only for the multiplayer route, an active room, restoration of applicable saved credentials (on any route), or an explicit departure awaiting acknowledgement. Public routes without a session stay disconnected, including on visibility/online/pageshow. Leaving the entry screen releases the transport; a confirmed room exit waits for `room:leave` acknowledgement (bounded by the request timeout) before releasing it. Definitive restoration failures clear credentials and release the connection on public routes; temporary failures retain credentials and retry controls. Entry callbacks are cancelled when their page or invitation changes, so late connections/replies cannot reopen a room.
 
+## Offline (service worker)
+
+Production builds register `/sw.js` (generated after `vite build` by `scripts/build-service-worker.mjs` from the finished `dist/`). It precaches the whole app with content hashes, serves page loads network-first with the cached shell as the offline fallback, never intercepts Socket.IO, `/api/` or `/health`, never stores anything at runtime and never touches browser storage. Updates install into a new cache, wait until every Penjat page has closed, then remove the old cache. Details, recovery and the iPhone checklist: [offline and the service worker](offline-pwa.md).
+
 ## Incremental concerns
 
 - `App` combines routing, socket subscriptions, restoration and metadata. Extract a small session coordinator only when further lifecycle work requires it; keep recipient views as the UI boundary.

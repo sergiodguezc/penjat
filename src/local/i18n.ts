@@ -1,3 +1,4 @@
+import type { OfflineReadiness } from '../pwa/offline'
 import type { LocalSetupError } from './match'
 
 const ca = {
@@ -56,6 +57,12 @@ const ca = {
   playAgain: 'Torna a jugar',
   newMatch: 'Nova partida',
   covered: 'Pantalla amagada',
+  offline: {
+    preparing: 'Preparant el joc per jugar sense connexió…',
+    ready: 'Llest per jugar sense connexió',
+    'needs-connection': 'Cal connexió per preparar el joc sense connexió',
+    failed: 'No s’ha pogut preparar el joc sense connexió. Amb connexió, podeu jugar igualment.',
+  } as Record<Exclude<OfflineReadiness, 'unsupported'>, string>,
 }
 
 const es: typeof ca = {
@@ -114,6 +121,12 @@ const es: typeof ca = {
   playAgain: 'Volver a jugar',
   newMatch: 'Nueva partida',
   covered: 'Pantalla oculta',
+  offline: {
+    preparing: 'Preparando el juego para jugar sin conexión…',
+    ready: 'Listo para jugar sin conexión',
+    'needs-connection': 'Necesitas conexión para preparar el juego sin conexión',
+    failed: 'No se ha podido preparar el juego sin conexión. Con conexión, podéis jugar igualmente.',
+  },
 }
 
 export const localTranslations = { ca, es }

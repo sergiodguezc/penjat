@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url'
 
 const SESSION_KEY = 'hangman-room-session'
 const MATCH_KEY = 'penjat-local-match'
-const AUDIT = `() => {
+export const AUDIT = `() => {
   const audit = window.__socketAudit = { attempts: 0, open: 0 }
   const NativeSocket = window.WebSocket
   window.WebSocket = class extends NativeSocket {
@@ -247,50 +247,14 @@ export async function checkLocalMatch({ origin, io, command, evaluate, waitFor, 
   console.log('Browser local match checks passed: full two-player match through every gate, reload/background/bfcache/blur privacy, clock pauses, memory-only exit guard, history, no Socket.IO traffic')
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { io } = await import('socket.io-client')
+  const { openBidiSession } = await import('./bidi-session.mjs')
   const origin = process.env.TEST_SERVER_URL || 'http://127.0.0.1:3002'
   assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(new URL(origin).hostname), 'Browser tests must target a local server')
-  const ws = new WebSocket(`${process.env.BIDI_URL || 'ws://127.0.0.1:9222'}/session`)
-  await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject })
-  let id = 0
-  const pending = new Map()
-  const errors = []
-  ws.onmessage = ({ data }) => {
-    const message = JSON.parse(data)
-    if (message.method === 'log.entryAdded' && message.params.level === 'error') errors.push(message.params.text)
-    const request = pending.get(message.id)
-    if (!request) return
-    pending.delete(message.id); clearTimeout(request.timer)
-    if (message.type === 'error') request.reject(new Error(`${message.error}: ${message.message}`)); else request.resolve(message.result)
-  }
-  const command = (method, params = {}) => new Promise((resolve, reject) => {
-    const requestId = ++id
-    const timer = setTimeout(() => { pending.delete(requestId); reject(new Error(`Timed out: ${method}`)) }, 10000)
-    pending.set(requestId, { resolve, reject, timer })
-    ws.send(JSON.stringify({ id: requestId, method, params }))
-  })
-  const evaluate = async (context, expression) => {
-    const result = await command('script.evaluate', { expression, target: { context }, awaitPromise: true, userActivation: true })
-    if (result.type === 'exception') throw new Error(JSON.stringify(result.exceptionDetails))
-    return result.result.type === 'null' ? null : result.result.value
-  }
-  const waitFor = async (context, expression) => {
-    const deadline = Date.now() + 7000
-    while (Date.now() < deadline) { if (await evaluate(context, expression).catch(() => false)) return; await new Promise((resolve) => setTimeout(resolve, 50)) }
-    throw new Error(`Browser condition failed: ${expression}\n${await evaluate(context, 'document.body.innerText')}`)
-  }
-  const navigate = (context, path) => command('browsingContext.navigate', { context, url: new URL(path, origin).href, wait: 'complete' })
-  const contexts = []
-  const newTab = async (userContext) => { const { context } = await command('browsingContext.create', { type: 'tab', userContext }); contexts.push(context); return context }
+  const session = await openBidiSession(origin)
   try {
-    await command('session.new', { capabilities: {} })
-    await command('session.subscribe', { events: ['log.entryAdded'] })
-    await checkLocalMatch({ origin, io, command, evaluate, waitFor, navigate, newTab })
-    assert.deepEqual(errors, [], 'No browser console errors should occur')
-  } finally {
-    for (const context of contexts.reverse()) await command('browsingContext.close', { context }).catch(() => {})
-    await command('session.end').catch(() => {})
-    ws.close()
-  }
+    await checkLocalMatch({ origin, io, ...session })
+    assert.deepEqual(session.errors, [], 'No browser console errors should occur')
+  } finally { await session.close() }
 }

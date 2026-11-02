@@ -371,6 +371,7 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
               <li>{t.iosInstallTap} <strong>{t.iosInstallAdd}</strong>.</li>
             </ol>
             <p>{t.iosInstallOutro}</p>
+            <p>{t.iosInstallOffline}</p>
           </div>
         </div>
       </section>}

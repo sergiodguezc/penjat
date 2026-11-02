@@ -8,6 +8,7 @@ Catalan hangman with Catalan/Spanish interfaces, vocabulary learning, a persiste
 - `src/learning/`, `src/daily/`: client game rules; `data/vocabulary.json` is bundled offline vocabulary.
 - `server/server.ts`: Node HTTP/Socket.IO boundary. `server/game/GameManager.ts` owns identities/rooms; `GameRoom.ts` owns authoritative gameplay.
 - `shared/game.ts` and `shared/protocol.ts`: matching rules and typed wire contract.
+- `src/local/` + `src/pages/LocalMatchPage.tsx`: "Passa el mòbil" (one device, no server). `src/pwa/` + `scripts/build-service-worker.mjs`: production service worker for offline play; it affects every page, so read [offline](docs/offline-pwa.md) before changing caching, routes or public files.
 - Read [architecture](docs/architecture.md), [development](docs/development.md), or [gameplay contracts](docs/gameplay-contracts.md) as relevant. For corpus work also read [vocabulary v1](docs/vocabulary-v1.md) and [data workflow](data/README.md).
 
 ## Commands
@@ -18,7 +19,7 @@ Use Node 24 (>=24 <25), npm and Python 3 for offline vocabulary checks.
 - Full-stack dev: `npm run dev`; separate: `npm run dev:vite-only` and `npm run dev:server`. `dev:client` also starts both.
 - Build: `npm run build`; production locally: `npm start`. `npm run preview` previews only the frontend.
 - Lint: `npm run lint`. Type check: `npx tsc -b --pretty false` and `npx tsc -p server/tsconfig.json --noEmit` (also checked by build).
-- Client/domain: `npm run test:learning`, `test:vocabulary`, `test:daily`, `test:invitation`, `test:localization`, `test:navigation`, `test:character`, `test:multiplayer-ui`, `test:match-results`, `test:storage`, `test:round-rules` (shared round rules against `GameRoom` source), `test:local` (Passa el mòbil domain and storage), `test:local-ui`; browser: `test:browser:local`.
+- Client/domain: `npm run test:learning`, `test:vocabulary`, `test:daily`, `test:invitation`, `test:localization`, `test:navigation`, `test:character`, `test:multiplayer-ui`, `test:match-results`, `test:storage`, `test:round-rules` (shared round rules against `GameRoom` source), `test:local` (Passa el mòbil domain and storage), `test:local-ui`, `test:pwa`; browser: `test:browser:local`, `test:offline` (after a build).
 - Backend: build server first, then `npm run test:game`, `test:chat`, `test:lifecycle`, `test:match`, `test:n-player`, `test:absence`, `test:reconnect`, `test:lobby-settings`, `test:seat-lifecycle`, `test:entry-race`.
 - Integration: `TEST_SERVER_URL=http://127.0.0.1:3002 npm run test:e2e` with a dedicated local server. `npm run test:seo` starts its own server after a full build.
 - Browser navigation/storage regressions: `npm run test:browser` with dedicated Firefox BiDi and a local built server; setup is in development docs. No additional npm dependency.

@@ -19,8 +19,7 @@ const ca = {
   learningCardAction: 'Comença a practicar',
   helpCard: 'Regles, torns, puntuació i perdó, explicats pas a pas.',
   local: 'Passa el mòbil',
-  // Phase 4 appends ", fins i tot sense internet" once offline play works.
-  localCard: 'Jugueu junts amb un sol mòbil.',
+  localCard: 'Jugueu junts amb un sol mòbil, fins i tot sense internet.',
   localCardAction: 'Prepara la partida',
   helpCardAction: 'Llegeix les regles',
   previewTag: '6 lletres',
@@ -49,7 +48,7 @@ const es: typeof ca = {
   learningCardAction: 'Empieza a practicar',
   helpCard: 'Reglas, turnos, puntuación y perdón, explicados paso a paso.',
   local: 'Pasa el móvil',
-  localCard: 'Jugad juntos con un solo móvil.',
+  localCard: 'Jugad juntos con un solo móvil, incluso sin internet.',
   localCardAction: 'Prepara la partida',
   helpCardAction: 'Lee las reglas',
   previewTag: '6 letras',

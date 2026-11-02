@@ -77,10 +77,10 @@ assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([langu
   ca: { eyebrow: 'El joc del penjat', cardsTitle: 'Tria com vols jugar', multiplayerCard: 'Sales privades de 2 a 10 persones. A cada torn, algú tria la paraula i la resta l’endevina.', multiplayerCardAction: 'Crea una sala', dailyCard: 'Una paraula nova cada dia, la mateixa per a tothom. Comparteix el resultat sense revelar-la.', dailyCardAction: 'Juga la d’avui', learningCard: 'Paraules catalanes per temes, amb una pista en castellà. En acabar, veus el significat, un exemple i una il·lustració.', learningCardAction: 'Comença a practicar', helpCard: 'Regles, torns, puntuació i perdó, explicats pas a pas.', helpCardAction: 'Llegeix les regles', previewTag: '6 lletres' },
   es: { eyebrow: 'El juego del ahorcado', cardsTitle: 'Elige cómo quieres jugar', multiplayerCard: 'Salas privadas de 2 a 10 personas. En cada turno, alguien elige la palabra y el resto la adivina.', multiplayerCardAction: 'Crea una sala', dailyCard: 'Una palabra nueva cada día, la misma para todos. Comparte el resultado sin revelarla.', dailyCardAction: 'Juega la de hoy', learningCard: 'Palabras catalanas por temas, con una pista en español. Al terminar, ves el significado, un ejemplo y una ilustración.', learningCardAction: 'Empieza a practicar', helpCard: 'Reglas, turnos, puntuación y perdón, explicados paso a paso.', helpCardAction: 'Lee las reglas', previewTag: '6 letras' },
 })
-// "Passa el mòbil" entry, pinned literally (Phase 4 adds the offline claim once it is true).
+// "Passa el mòbil" entry, pinned literally; the offline claim is backed by the service worker (test:offline).
 assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => LOCAL_KEYS.includes(key)))])), {
-  ca: { local: 'Passa el mòbil', localCard: 'Jugueu junts amb un sol mòbil.', localCardAction: 'Prepara la partida' },
-  es: { local: 'Pasa el móvil', localCard: 'Jugad juntos con un solo móvil.', localCardAction: 'Prepara la partida' },
+  ca: { local: 'Passa el mòbil', localCard: 'Jugueu junts amb un sol mòbil, fins i tot sense internet.', localCardAction: 'Prepara la partida' },
+  es: { local: 'Pasa el móvil', localCard: 'Jugad juntos con un solo móvil, incluso sin internet.', localCardAction: 'Prepara la partida' },
 })
 // Word band pause/resume control (the band's words drift slowly), pinned literally.
 assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => BAND_KEYS.includes(key)))])), {
@@ -137,9 +137,8 @@ try {
       assert.deepEqual([...quick.matchAll(/<a class="([^"]+)" href="([^"]+)"/g)].map((match) => [match[1], match[2]]), [['quick-play', '/multijugador'], ['quick-card quick-card--learn', '/aprendre'], ['quick-card quick-card--daily', '/paraula-del-dia'], ['quick-card quick-card--local', '/passa-el-mobil']])
       assert.deepEqual([...quick.matchAll(/<a [^>]*>(.*?)<\/a>/g)].map((match) => match[1].replace(/<[^>]+>/g, '')),
         [`${copy.play}${copy.playCaption}→`, copy.quickLearning, `${d.title}#${challenge.number}${state === 'new' ? '' : ` ✓ · ${copy.dailyPlayed}`}`, copy.local])
-      // Passa el mòbil: one mode card and one phone card; the offline claim waits for offline support (Phase 4).
+      // Passa el mòbil: one mode card and one phone card.
       assert.ok(html.includes(`<a href="/passa-el-mobil"><div class="mode-card-text"><h3>${copy.local}</h3><p class="mode-card-body">${copy.localCard}</p>`))
-      assert.doesNotMatch(copy.localCard, /internet/)
       assert.ok(!quick.replace(d.title, '').toLowerCase().includes(challenge.entry.answerCa.toLowerCase()))
       assert.ok(!quick.includes('<button'))
     }
