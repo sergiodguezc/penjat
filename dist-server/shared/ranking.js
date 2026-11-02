@@ -1,6 +1,6 @@
 /** Competition ranks: equal totals share a place (1, 1, 3).
  * Stable input order only orders rows; it never breaks a score tie.
- * Round points have their own server-side ordering and do not use this helper.
+ * Round points have their own ordering (`scoreRound` in shared/round.ts) and do not use this helper.
  */
 export function rankByScore(players) {
     const ordered = [...players].sort((a, b) => b.score - a.score);

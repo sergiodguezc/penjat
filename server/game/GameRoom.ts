@@ -1,4 +1,5 @@
-import { displayWord, isCorrectGuess, isWordComplete, MAX_ERRORS, normalizeGuess, validateSecretWord, type Language } from '../../shared/game.js'
+import { displayWord, isCorrectGuess, validateSecretWord, type Language } from '../../shared/game.js'
+import { applyGuess, scoreRound } from '../../shared/round.js'
 import { MAX_ROOM_PLAYERS, REACTION_TYPES, type ChatMessage, type ForgivenessRequest, type MatchResult, type MatchView, type MessageReactions, type Player, type PlayerGameView, type PlayerRoundStatus, type PlayerRoundView, type PublicPlayer, type ReactionType, type RoundResultEntry, type RoundStatus, type RoomStatus, type Voltes } from '../../shared/protocol.js'
 import { randomUUID } from 'node:crypto'
 
@@ -147,24 +148,14 @@ export class GameRoom {
     const state = round.playerStates.get(playerId)
     if (!state || state.status !== 'playing') throw new Error('not-guesser')
     this.requireConnected(playerId)
-    if (typeof input !== 'string') throw new Error('invalid-guess')
-    const guess = normalizeGuess(input, this.language)
-    if (!guess) throw new Error('invalid-guess')
-    if (state.guessedLetters.has(guess)) return
-    state.guessedLetters.add(guess)
-    if (isWordComplete(round.secretWord!, state.guessedLetters, this.language)) {
-      this.finishPlayer(state, 'solved')
-      this.maybeFinishRound()
-      return
-    }
-    if (!isCorrectGuess(round.secretWord!, guess, this.language)) {
-      state.errors += 1
-      if (!state.forgiven && state.errors >= MAX_ERRORS) {
-        state.status = 'awaiting-forgiveness'
-        this.createForgivenessRequest(round, state.playerId)
-      } else if (state.forgiven && state.errors > MAX_ERRORS) {
-        this.finishPlayer(state, 'eliminated')
-      }
+    const outcome = applyGuess(round.secretWord!, state, input, this.language)
+    if (!outcome) return
+    state.guessedLetters.add(outcome.guess)
+    state.errors = outcome.errors
+    if (outcome.status === 'solved' || outcome.status === 'eliminated') this.finishPlayer(state, outcome.status)
+    else if (outcome.status === 'awaiting-forgiveness') {
+      state.status = 'awaiting-forgiveness'
+      this.createForgivenessRequest(round, state.playerId)
     }
     this.maybeFinishRound()
   }
@@ -435,38 +426,16 @@ export class GameRoom {
     const round = this.currentRound
     if (!round || round.status !== 'guessing' || [...round.playerStates.values()].some((state) => !this.isTerminal(state.status))) return
     round.status = 'round-over'
-    const scored = [...round.playerStates.values()].filter((state) => !state.sittingOut)
-    round.ranking = scored.sort((a, b) => this.compareRoundStates(a, b)).map((state) => state.playerId)
-    const guesserCount = scored.length
-    round.results = round.ranking.map((playerId, index) => {
-      const state = round.playerStates.get(playerId)!
-      state.roundRank = index + 1
-      const player = this.player(playerId)
-      const pointsAwarded = state.status === 'solved' ? guesserCount - index : 0
-      if (player) player.score += pointsAwarded
-      return {
-        playerId,
-        position: index + 1,
-        status: state.status as RoundResultEntry['status'],
-        forgiven: state.forgiven,
-        errors: state.errors,
-        resolutionTimeMs: state.resolutionTimeMs,
-        pointsAwarded,
-      }
-    })
+    round.results = scoreRound([...round.playerStates.values()].filter((state) => !state.sittingOut), this.matchRosterIds)
+    round.ranking = round.results.map((result) => result.playerId)
+    for (const result of round.results) {
+      round.playerStates.get(result.playerId)!.roundRank = result.position
+      const player = this.player(result.playerId)
+      if (player) player.score += result.pointsAwarded
+    }
     round.results.push({ playerId: round.setterId, position: null, status: 'setter', forgiven: false, errors: null, resolutionTimeMs: null, pointsAwarded: 0 })
     // No remaining turn has an active setter (including the last turn): nobody could continue, so the match ends.
     if (this.presentPlayers.length < 2 || this.nextActiveSetterId() === null) this.finishMatch()
-  }
-
-  private compareRoundStates(a: MutablePlayerRoundState, b: MutablePlayerRoundState) {
-    const solvedDifference = Number(b.status === 'solved') - Number(a.status === 'solved')
-    if (solvedDifference) return solvedDifference
-    if (a.errors !== b.errors) return a.errors - b.errors
-    const aTime = a.resolutionTimeMs ?? Number.POSITIVE_INFINITY
-    const bTime = b.resolutionTimeMs ?? Number.POSITIVE_INFINITY
-    if (aTime !== bTime) return aTime - bTime
-    return this.matchRosterIds.indexOf(a.playerId) - this.matchRosterIds.indexOf(b.playerId)
   }
 
   private finishMatch() {
