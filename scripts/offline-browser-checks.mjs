@@ -22,6 +22,8 @@ const origin = `http://127.0.0.1:${port}`
 const work = mkdtempSync(join(tmpdir(), 'penjat-offline-'))
 const dist = join(work, 'dist')
 cpSync('dist', dist, { recursive: true })
+// The server reads config/limits.json from its working directory, as from the checkout root on Render.
+cpSync('config', join(work, 'config'), { recursive: true })
 const versionOf = (source) => source.match(/^const VERSION = "(\w+)"/)[1]
 const precacheSize = (source) => JSON.parse(source.match(/^const PRECACHE = (.*)$/m)[1]).length
 const versionA = versionOf(readFileSync(join(dist, 'sw.js'), 'utf8'))
@@ -29,14 +31,18 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 let server = null
 async function start() {
-  server = spawn(process.execPath, [resolve('dist-server/server/server.js')], { cwd: work, env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', NODE_ENV: 'production' }, stdio: 'ignore' })
-  for (let attempt = 0; attempt < 100; attempt++) { if (await fetch(`${origin}/health`).then((response) => response.ok, () => false)) return; await pause(100) }
+  server = spawn(process.execPath, [resolve('dist-server/server/server.js')], { cwd: work, env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', NODE_ENV: 'production' }, stdio: ['ignore', 'ignore', 'inherit'] })
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (server.exitCode !== null) throw new Error(`production server exited with code ${server.exitCode}`)
+    if (await fetch(`${origin}/health`).then((response) => response.ok, () => false)) return
+    await pause(100)
+  }
   throw new Error('production server did not start')
 }
 async function stop() {
   if (!server) return
-  const exited = new Promise((resolve) => server.once('exit', resolve))
-  server.kill(); await exited; server = null
+  if (server.exitCode === null && server.signalCode === null) { const exited = new Promise((resolve) => server.once('exit', resolve)); server.kill(); await exited }
+  server = null
   assert.equal(await fetch(`${origin}/health`).then(() => true, () => false), false, 'the network is gone')
 }
 
