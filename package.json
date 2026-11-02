@@ -18,6 +18,7 @@
     "test:browser:multiplayer": "node scripts/multiplayer-browser-test.mjs",
     "test:game": "node scripts/forgiveness-test.mjs",
     "test:local": "tsx --tsconfig tsconfig.app.json tests/local-match-test.ts",
+    "test:local-ui": "tsx --tsconfig tsconfig.app.json tests/local-match-ui-test.tsx",
     "test:round-rules": "tsx --tsconfig tsconfig.app.json tests/round-rules-characterization-test.ts",
     "test:chat": "node scripts/chat-test.mjs",
     "test:chat-inbox": "tsx --tsconfig tsconfig.app.json tests/chat-inbox-test.ts",
@@ -79,7 +80,8 @@
     "vocab": "python3 scripts/vocab_pipeline.py all",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:browser": "node scripts/browser-audit-test.mjs"
+    "test:browser": "node scripts/browser-audit-test.mjs",
+    "test:browser:local": "node scripts/local-match-browser-checks.mjs"
   },
   "engines": {
     "node": ">=24 <25"

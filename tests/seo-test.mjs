@@ -54,11 +54,11 @@ try {
   }
   assert.equal((await fetch(`http://127.0.0.1:${port}/aprendre/`, { method: 'HEAD' })).status, 200)
   // The sitemap lists exactly the canonical URL of each page, and robots.txt allows crawling and points to it.
-  for (const path of ['/', '/multijugador/', '/aprendre/', '/paraula-del-dia/', '/com-es-juga/']) {
+  for (const path of ['/', '/multijugador/', '/passa-el-mobil/', '/aprendre/', '/paraula-del-dia/', '/com-es-juga/']) {
     const canonical = (await fetchText(`http://127.0.0.1:${port}${path}`)).match(/<link rel="canonical" href="([^"]+)" \/>/)[1]
     assert.ok(sitemap.includes(`<loc>${canonical}</loc>`), `sitemap lists ${canonical}`)
   }
-  assert.equal([...sitemap.matchAll(/<loc>/g)].length, 5)
+  assert.equal([...sitemap.matchAll(/<loc>/g)].length, 6)
   const robots = await fetchText(`http://127.0.0.1:${port}/robots.txt`)
   assert.match(robots, /User-agent: \*\nAllow: \//)
   assert.doesNotMatch(robots, /Disallow/)
@@ -68,6 +68,7 @@ try {
   const titles = {
     '/': 'Penjat — Joc del penjat online en català',
     '/multijugador/': 'Penjat multijugador — Juga online amb amics',
+    '/passa-el-mobil/': 'Passa el mòbil: el penjat en grup amb un sol mòbil | Penjat',
     '/aprendre/': learningTitle,
     '/paraula-del-dia/': 'El penjat del dia: endevina una paraula en català | Penjat',
     '/com-es-juga/': 'Com es juga a Penjat? | Penjat',

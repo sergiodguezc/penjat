@@ -40,6 +40,11 @@ const routeMetadata: Record<string, RouteMetadata> = {
     description: 'Juga a Penjat multijugador online amb amics. Crea una sala, comparteix el codi i competeix en català o castellà.',
     canonicalPath: '/multijugador',
   },
+  '/passa-el-mobil/': {
+    title: 'Passa el mòbil: el penjat en grup amb un sol mòbil | Penjat',
+    description: 'Jugueu al penjat en grup amb un sol mòbil: una persona tria la paraula en secret i la resta l’endevina per torns, passant-vos el mòbil.',
+    canonicalPath: '/passa-el-mobil',
+  },
   '/aprendre/': {
     title: 'Aprèn vocabulari català jugant al penjat | Penjat',
     description: 'Aprèn vocabulari català jugant al penjat. Paraules per temes (natura, animals, menjar, casa, ciutat, emocions) amb definicions, exemples i traducció al castellà.',

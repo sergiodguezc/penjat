@@ -28,6 +28,7 @@ type Props = {
   onResume: () => void
   onLearn: () => void
   onDaily?: () => void
+  onLocal?: () => void
   onMultiplayer: () => void
   onHelp: () => void
 }
@@ -50,7 +51,7 @@ function readHomeDaily() {
   }
 }
 
-export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomCode = null, mode, onEnter, onResume, onLearn, onDaily, onMultiplayer, onHelp }: Props) {
+export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomCode = null, mode, onEnter, onResume, onLearn, onDaily, onLocal, onMultiplayer, onHelp }: Props) {
   const [panel, setPanel] = useState<'menu' | 'multiplayer'>(mode === 'multiplayer' ? 'multiplayer' : 'menu')
   // One name for both actions, pre-filled with the remembered one.
   const [name, setName] = useState(readStoredName)
@@ -345,6 +346,10 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
               <span className="quick-card-label">{d.title}</span>
               <span className="quick-card-tag">#{daily.number}{daily.status !== 'new' && <><span aria-hidden="true"> ✓</span><span className="sr-only"> · {homeCopy.dailyPlayed}</span></>}</span>
             </a></li>
+            <li className="quick-local-item"><a className="quick-card quick-card--local" href="/passa-el-mobil" onClick={route(onLocal)}>
+              <span className="quick-card-icon"><ModeIcon mode="local" /></span>
+              <span className="quick-card-label">{homeCopy.local}</span>
+            </a></li>
           </ul>
         </nav>
       </div>
@@ -389,6 +394,8 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
             art={<span className="mode-art-hint"><span lang="es">caracol</span><strong lang="ca">cargol</strong></span>} />
           <ModeCard tone="paper" href="/com-es-juga" onClick={route(onHelp)} title={isCatalan ? 'Com es juga' : 'Cómo se juega'} body={homeCopy.helpCard} action={homeCopy.helpCardAction}
             art={<span className="mode-art-drawing"><HangmanDrawing errors={3} /></span>} />
+          <ModeCard tone="local" href="/passa-el-mobil" onClick={route(onLocal)} title={homeCopy.local} body={homeCopy.localCard} action={homeCopy.localCardAction}
+            art={<span className="mode-art-phone"><ModeIcon mode="local" /></span>} />
         </ul>
       </section>
       <small className="sr-only">{getLanguageConfig(interfaceLanguage).name}</small>
@@ -453,7 +460,7 @@ function readStoredName() {
   return readStored('hangman-name') ?? ''
 }
 
-function ModeCard({ tone, href, onClick, title, body, action, art }: { tone: 'mar' | 'safra' | 'oliva' | 'paper'; href: string; onClick: ReturnType<typeof route>; title: string; body: string; action: string; art: ReactNode }) {
+function ModeCard({ tone, href, onClick, title, body, action, art }: { tone: 'mar' | 'safra' | 'oliva' | 'paper' | 'local'; href: string; onClick: ReturnType<typeof route>; title: string; body: string; action: string; art: ReactNode }) {
   return <li className={`mode-card mode-card--${tone}`}>
     <a href={href} onClick={onClick}>
       <div className="mode-card-text">
@@ -466,10 +473,11 @@ function ModeCard({ tone, href, onClick, title, body, action, art }: { tone: 'ma
   </li>
 }
 
-function ModeIcon({ mode }: { mode: 'multiplayer' | 'learning' | 'daily' }) {
+function ModeIcon({ mode }: { mode: 'multiplayer' | 'learning' | 'daily' | 'local' }) {
   return <svg className="mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
     {mode === 'multiplayer' ? <><circle cx="9" cy="8" r="3" /><path d="M3 21v-3a6 6 0 0 1 12 0v3 M16 5a3 3 0 0 1 0 6 M18 15a5 5 0 0 1 3 5" /></>
       : mode === 'learning' ? <><path d="M12 5v16 M3 3c4 0 6 0 9 2 3-2 5-2 9-2v16c-4 0-6 0-9 2-3-2-5-2-9-2z" /><path d="M6 8h3 M15 8h3" /></>
+      : mode === 'local' ? <><rect x="7" y="2" width="10" height="20" rx="2" /><path d="M11 18h2 M3 9l2 2-2 2 M21 9l-2 2 2 2" /></>
       : <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18 M8 3v4 M16 3v4" /><path d="M8 14h2 M12 14h2 M8 17h2" /></>}
   </svg>
 }

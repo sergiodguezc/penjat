@@ -1,4 +1,4 @@
-export const publicRoutes = ['/', '/multijugador/', '/aprendre/', '/paraula-del-dia/', '/com-es-juga/'];
+export const publicRoutes = ['/', '/multijugador/', '/passa-el-mobil/', '/aprendre/', '/paraula-del-dia/', '/com-es-juga/'];
 export function normalizeRoute(pathname) {
     const trimmed = pathname.replace(/\/+$/, '') || '/';
     const withoutLegacyLocale = trimmed === '/es'

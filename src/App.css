@@ -1222,3 +1222,68 @@ body { background-image: radial-gradient(oklch(0.2 0.015 60 / 5%) .7px, transpar
 @media (max-width: 41.25em) and (min-height: 30em) {
   :root #root:has(.room-chat) > .match-over-page { padding-bottom: calc(var(--match-actions-height, 120px) + var(--space-6)); }
 }
+
+/* Passa el mòbil: one phone passed around the table. Gates fill the screen with one action; private screens never
+   share it with anything else. */
+.mode-cards .mode-card--local { grid-column: 1 / -1; }
+.mode-card--local > a { background: var(--mar-surface); }
+.mode-card--local .mode-card-text { max-width: min(30rem, 70%); }
+.mode-art-phone .mode-icon { display: block; width: clamp(4rem, 3rem + 3vw, 6rem); height: auto; color: var(--ink); }
+.home-quick .quick-local-item { grid-column: 1 / -1; }
+.quick-card--local { background: var(--mar-surface); }
+.quick-card--local:hover { background: color-mix(in oklch, var(--mar) 30%, var(--surface)); }
+
+.local-page { min-height: calc(100dvh - var(--header-height)); padding: var(--space-5) calc(env(safe-area-inset-right, 0px) + var(--space-4)) var(--space-10) calc(env(safe-area-inset-left, 0px) + var(--space-4)); }
+.local-setup-page, .local-stage, .local-page .local-header, .local-save-warning { width: min(100%, 46rem); margin-inline: auto; }
+.local-setup-page { width: min(100%, 34rem); }
+.local-setup-page .page-head { width: 100%; margin-bottom: var(--space-6); }
+.local-lede { max-width: var(--measure); margin: var(--space-3) 0 0; color: var(--text-muted); font-size: var(--text-lede); line-height: var(--leading-body); }
+.local-notice, .local-save-warning { padding: var(--space-3) var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-inner); color: var(--ink); background: var(--warning-surface); font-size: var(--text-meta); line-height: var(--leading-ui); }
+.local-notice { margin: 0 0 var(--space-4); }
+.local-save-warning { margin-bottom: var(--space-4); }
+.local-players { display: grid; gap: var(--space-3); min-width: 0; margin: 0; padding: 0; border: 0; }
+.local-players legend { margin-bottom: var(--space-2); color: var(--ink); font-size: var(--text-meta); font-weight: var(--weight-semibold); }
+.local-players .setup-hint { margin: 0; text-align: left; }
+.local-players ol { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.local-players li { display: grid; grid-template-columns: 2rem minmax(0, 1fr) var(--control-height); align-items: center; gap: var(--space-2); }
+.local-seat { display: grid; place-items: center; width: 2rem; height: 2rem; border: 2px solid var(--ink); border-radius: 50%; background: var(--safra); font: 700 var(--text-meta)/1 var(--font-display); }
+.setup .local-players input { margin-top: 0; }
+.local-remove { display: grid; place-items: center; width: var(--control-height); height: var(--control-height); padding: 0; border: 2px solid var(--ink); border-radius: 50%; color: var(--ink); background: var(--surface); font-size: var(--text-brand); line-height: 1; }
+.local-remove:not(:disabled):hover { background: var(--paper-deep); }
+.setup .local-remove:disabled { cursor: not-allowed; opacity: .35; }
+.local-resume h2 { margin: 0; color: var(--ink); font: 800 var(--text-panel-title)/var(--leading-heading) var(--font-display); }
+.local-resume-summary, .local-resume-players { margin: 0; color: var(--text-muted); font-size: var(--text-meta); line-height: var(--leading-ui); overflow-wrap: anywhere; }
+.local-resume-players { color: var(--ink); font-size: var(--text-body); }
+
+.local-page .local-header { margin-bottom: var(--space-4); flex-wrap: wrap; gap: var(--space-2) var(--space-5); }
+.local-panel { border: 2px solid var(--ink); border-radius: var(--radius-card); color: var(--ink); background: var(--surface); box-shadow: var(--shadow-card); overflow: hidden; }
+.handoff { display: grid; align-content: center; justify-items: center; gap: var(--space-4); min-height: min(32rem, calc(100dvh - 12rem)); padding: var(--space-8) var(--space-5); text-align: center; }
+.handoff-eyebrow { margin: 0; color: var(--text-muted); font-size: var(--text-meta); font-weight: var(--weight-bold); letter-spacing: var(--tracking-label); text-transform: uppercase; }
+.handoff-title, .local-screen-title { margin: 0; color: var(--ink); font-family: var(--font-display); font-weight: 800; letter-spacing: -.02em; overflow-wrap: anywhere; text-wrap: balance; }
+.handoff-title { font-size: var(--text-display); line-height: 1.05; }
+.local-screen-title { font-size: var(--text-panel-title); line-height: var(--leading-heading); }
+.handoff-body { max-width: 32ch; margin: 0; font-size: var(--text-lede); line-height: var(--leading-body); }
+.handoff-action, .handoff-actions { width: min(100%, 22rem); }
+.handoff-action { min-height: 3.5rem; }
+.handoff-actions { display: grid; gap: var(--space-3); }
+.handoff-actions button { min-height: 3.5rem; }
+.turn-complete-art { width: 7rem; }
+.turn-complete-art .hangman { display: block; width: 100%; height: auto; }
+.forgive-decision .error-meter { flex-basis: auto; justify-content: center; }
+.local-page [tabindex="-1"]:focus:not(:focus-visible) { outline: none; box-shadow: none; }
+.local-word-form.word-form { width: auto; margin: 0; padding: var(--space-8) var(--space-5); }
+.local-board .role-line { margin: 0; }
+.local-results { display: grid; gap: var(--space-4); padding: var(--space-6) var(--space-5); }
+.local-results .round-result { margin: 0; }
+.local-results .round-results { margin: 0; }
+/* The online match layout places .scoreboard in a named grid area; here it simply follows the results. */
+.local-results > .scoreboard { grid-area: auto; padding-inline: 0; }
+.local-next { width: 100%; min-height: 3.5rem; }
+.local-match-over { margin-inline: auto; }
+.local-match-over .match-round-body { margin-top: var(--space-6); }
+.local-stage.is-covered { visibility: hidden; }
+.local-cover { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; color: var(--text-muted); background: var(--paper); font: 700 var(--text-panel-title)/var(--leading-heading) var(--font-display); }
+@media (min-width: 41.3125em) {
+  .local-page { padding-inline: calc(env(safe-area-inset-left, 0px) + var(--space-6)) calc(env(safe-area-inset-right, 0px) + var(--space-6)); }
+  .handoff { padding-inline: var(--space-10); }
+}

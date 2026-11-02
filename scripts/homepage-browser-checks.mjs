@@ -29,7 +29,8 @@ export function checkHomeLayout(m, size = 's0') {
   assert.equal(m.overflow, false, `Overflow at ${width}`)
   assert.equal(m.headings.length, 1)
   assert.equal(m.canonical, 'https://penjat.cat/')
-  assert.deepEqual(m.links.map(link => link.href), ['/multijugador', '/aprendre', '/paraula-del-dia'])
+  // Phones add the full-width "Passa el mòbil" card below the two secondary cards; the wide hero is unchanged.
+  assert.deepEqual(m.links.map(link => link.href), ['/multijugador', '/aprendre', '/paraula-del-dia', ...m.quickShown ? ['/passa-el-mobil'] : []])
   assert.ok(m.links.every(link => link.height >= 48))
   // Phase 3B adopts Lovable's display headline, capped at 4.75rem (76px).
   assert.ok(m.h1.fontSize <= 76)

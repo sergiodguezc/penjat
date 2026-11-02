@@ -10,6 +10,7 @@ import { checkSiteHeader } from './header-browser-checks.mjs'
 import { checkHistoryGuard } from './history-guard-browser-checks.mjs'
 import { checkReconnect } from './reconnect-browser-checks.mjs'
 import { checkSocketLifecycle } from './socket-lifecycle-browser-checks.mjs'
+import { checkLocalMatch } from './local-match-browser-checks.mjs'
 
 const origin = process.env.TEST_SERVER_URL || 'http://127.0.0.1:3002'
 assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(new URL(origin).hostname), 'Browser tests must target a local server')
@@ -75,6 +76,7 @@ try {
   const isolatedProfile = (await command('browser.createUserContext')).userContext
   const home = await newTab(isolatedProfile)
   await checkSocketLifecycle({ command, evaluate, waitFor, navigate, newTab })
+  await checkLocalMatch({ origin, io, command, evaluate, waitFor, navigate, newTab })
   await checkNotFoundNavigation({ context: home, command, evaluate, waitFor, navigate })
   await checkP0Dialogs({context:home, command, evaluate, waitFor, navigate})
   await checkHomeNavigation({ context: home, command, evaluate, waitFor, navigate })

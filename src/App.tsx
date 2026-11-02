@@ -12,6 +12,7 @@ import { LearningPage } from './pages/LearningPage'
 import { DailyChallengePage } from './pages/DailyChallengePage'
 import { HowToPlayPage } from './pages/HowToPlayPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { LocalMatchPage } from './pages/LocalMatchPage'
 import { notFoundTranslations } from '../shared/notFound'
 import { SiteHeader } from './components/SiteHeader'
 import { SiteFooter } from './components/SiteFooter'
@@ -25,7 +26,7 @@ import { normalizeRoute, type Route } from './routing'
 import { historyIndex, resolveHistoryMove } from './navigation/history'
 import './App.css'
 
-type Mode = 'home' | 'multiplayer' | 'learning' | 'daily' | 'help'
+type Mode = 'home' | 'multiplayer' | 'local' | 'learning' | 'daily' | 'help'
 type PageCopy = { title: string; description: string; socialTitle?: string; socialDescription?: string }
 type InvitationCode = string | null
 type ExitKind = 'game' | 'room'
@@ -50,6 +51,13 @@ const routeDescriptions: Record<Route, { mode: Mode; copy: Record<Language, Page
     copy: {
       ca: { title: 'Penjat multijugador — Juga online amb amics', description: 'Juga a Penjat multijugador online amb amics. Crea una sala, comparteix el codi i competeix en català o castellà.' },
       es: { title: 'Penjat multijugador — Juega online con amigos', description: 'Juega a Penjat multijugador online con amigos. Crea una sala, comparte el código y compite en catalán o español.' },
+    },
+  },
+  '/passa-el-mobil/': {
+    mode: 'local',
+    copy: {
+      ca: { title: 'Passa el mòbil: el penjat en grup amb un sol mòbil | Penjat', description: 'Jugueu al penjat en grup amb un sol mòbil: una persona tria la paraula en secret i la resta l’endevina per torns, passant-vos el mòbil.' },
+      es: { title: 'Pasa el móvil: el ahorcado en grupo con un solo móvil | Penjat', description: 'Jugad al ahorcado en grupo con un solo móvil: una persona elige la palabra en secreto y el resto la adivina por turnos, pasándoos el móvil.' },
     },
   },
   '/aprendre/': {
@@ -114,7 +122,8 @@ function App() {
   // Restoring a stored room starts before the first paint, so a refresh shows the reconnecting state, not the home page.
   const [restoreStatus, setRestoreStatus] = useState<RestoreStatus>(() => {
     const session = loadRoomSession()
-    return session && shouldResumeRoomSession(session.roomCode, readInvitationCode()) ? 'restoring' : 'idle'
+    // The local mode never needs the server: a stored room stays stored, untouched, until an online page restores it.
+    return session && route !== '/passa-el-mobil/' && shouldResumeRoomSession(session.roomCode, readInvitationCode()) ? 'restoring' : 'idle'
   })
   const restorer = useRef<RoomRestorer | null>(null)
   const [typingPlayers, setTypingPlayers] = useState<Record<string, { playerId: string; playerName: string }>>({})
@@ -124,6 +133,8 @@ function App() {
     try { return normalizeRoute(window.location.pathname) === '/aprendre/' ? sessionStorage.getItem(LEARNING_UNIT_KEY) : null } catch { return null }
   })
   const [dailyGameActive, setDailyGameActive] = useState(false)
+  // A local match that could not be saved: leaving would lose it.
+  const [localUnsaved, setLocalUnsaved] = useState(false)
   const [invitedRoomCode, setInvitedRoomCode] = useState<InvitationCode>(() => readInvitationCode())
   const [pendingExit, setPendingExit] = useState<{ kind: ExitKind; exit: () => void } | null>(null)
   const page = route ? routeDescriptions[route] : notFoundPage
@@ -283,6 +294,7 @@ function App() {
   const startMultiplayer = () => goTo('/multijugador/')
   const startLearning = () => goTo('/aprendre/')
   const startDaily = () => goTo('/paraula-del-dia/')
+  const startLocal = () => goTo('/passa-el-mobil/')
   const startHelp = () => goTo('/com-es-juga/')
   const returnHome = () => goTo('/')
 
@@ -297,7 +309,7 @@ function App() {
   const lostSeat = restoreStatus === 'replaced' || restoreStatus === 'left'
   const exitGuard = (): ExitKind | null => room
     ? room.roomStatus === 'waiting' ? 'room' : room.roomStatus === 'active' ? 'game' : null
-    : restoringRoom ? 'room' : view === 'daily' && dailyGameActive ? 'game' : null
+    : restoringRoom ? 'room' : (view === 'daily' && dailyGameActive) || (view === 'local' && localUnsaved) ? 'game' : null
   const requestConfirmedExit = (exit: () => void, confirmation: ExitKind | null) => {
     if (!confirmation) { exit(); return }
     setPendingExit({ kind: confirmation, exit })
@@ -351,7 +363,7 @@ function App() {
   }
   useEffect(() => { popStateHandler.current = handlePopState })
   const exitDialog = pendingExit ? <ExitConfirmationDialog language={interfaceLanguage} kind={pendingExit.kind} onCancel={cancelExit} onConfirm={confirmExit} /> : null
-  const section = !route ? undefined : room || restoreStatus !== 'idle' ? 'multiplayer' : view
+  const section = !route ? undefined : room || restoreStatus !== 'idle' ? 'multiplayer' : view === 'local' ? undefined : view
   const header = (exit?: { label: string; onExit: () => void }) => <SiteHeader language={interfaceLanguage} current={section} onLanguage={changeInterfaceLanguage}
     onNavigate={navigate} exit={exit} sticky={!room && (view === 'home' || view === 'help' || view === 'multiplayer')} />
   const footer = <SiteFooter language={interfaceLanguage} onNavigate={navigate} />
@@ -362,10 +374,11 @@ function App() {
   if (!room && restoreStatus !== 'idle') return <>{header()}<RoomRestoreNotice language={interfaceLanguage} status={restoreStatus} roomCode={loadRoomSession()?.roomCode ?? null} lostToken={restorer.current?.lostToken() ?? null}
     onRetry={retryRestore} onLeave={() => leave()} onDismiss={() => { setRestoreStatus('idle'); goTo('/multijugador/') }} />{exitDialog}</>
   if (!room && view === 'learning') return <>{header(learningUnit ? { label: navigationCopy.backToUnits, onExit: () => setLearningUnit(null) } : undefined)}<LearningPage language={interfaceLanguage} unitId={learningUnit} onUnit={setLearningUnit} />{exitDialog}</>
+  if (!room && view === 'local') return <>{header()}<LocalMatchPage language={interfaceLanguage} gameLanguage={gameLanguage} onHome={returnHome} onUnsavedChange={setLocalUnsaved} />{exitDialog}</>
   if (!room && view === 'daily') return <>{header()}<DailyChallengePage language={interfaceLanguage} onActiveGameChange={setDailyGameActive} onHome={returnHome} />{exitDialog}</>
   if (!room && view === 'multiplayer') return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} invitedRoomCode={invitedRoomCode} onEnter={enterRoom} onResume={retryRestore} onLearn={startLearning} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="multiplayer" />{footer}{exitDialog}</>
   if (!room && view === 'help') return <>{header()}<HowToPlayPage language={interfaceLanguage} onNavigate={navigate} />{footer}{exitDialog}</>
-  if (!room) return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} onEnter={enterRoom} onResume={retryRestore} onLearn={startLearning} onDaily={startDaily} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="home" />{footer}{exitDialog}</>
+  if (!room) return <>{header()}<HomePage interfaceLanguage={interfaceLanguage} gameLanguage={gameLanguage} notice={notice} onEnter={enterRoom} onResume={retryRestore} onLearn={startLearning} onDaily={startDaily} onLocal={startLocal} onMultiplayer={startMultiplayer} onHelp={startHelp} mode="home" />{footer}{exitDialog}</>
   const chat = <RoomChat messages={messages} currentPlayerId={playerId} typingPlayers={Object.values(typingPlayers)} t={multiplayerTranslations[interfaceLanguage]} language={interfaceLanguage} draft={chatDraft} onDraftChange={setChatDraft} mobileOpen={chatOpen} onMobileOpenChange={setChatOpen} enabled={restoreStatus === 'idle'} unreadIds={chatState.unreadIds} olderUnread={chatState.olderUnread} notification={chatState.notification} onRead={markChatRead} onNotificationHandled={notificationHandled} />
   if (room.roomStatus === 'waiting') return <>{header({ label: navigationCopy.leaveRoom, onExit: () => leave() })}{connectionNotice}<LobbyPage state={room} interfaceLanguage={interfaceLanguage} chat={chat} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
   return <>{header({ label: room.roomStatus === 'active' ? navigationCopy.leaveMatch : navigationCopy.leaveRoom, onExit: () => requestConfirmedExit(() => leave(), room.roomStatus === 'active' ? 'game' : null) })}{connectionNotice}<GamePage onLeave={() => leave()} onExitToMenu={() => leave('/')} state={room} interfaceLanguage={interfaceLanguage} chat={chat} messages={messages} playerId={playerId} typingPlayers={Object.values(typingPlayers)} />{exitDialog}</>
