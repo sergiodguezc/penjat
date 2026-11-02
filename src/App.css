@@ -52,7 +52,7 @@ button { cursor: pointer; }
 /* Interface language: Lovable's two-code pill. */
 .interface-language-toggle { flex: none; }
 .interface-language-toggle .language-selector--codes .language-options { gap: 2px; padding: 2px; border: 2px solid var(--ink); border-radius: var(--radius-pill); background: var(--surface); }
-.interface-language-toggle .language-selector--codes .language-options button { position: relative; min-width: 2.25rem; min-height: 1.625rem; padding: 0 var(--space-2); border-radius: var(--radius-pill); color: var(--ink); font-size: .75rem; font-weight: var(--weight-bold); letter-spacing: .04em; }
+.interface-language-toggle .language-selector--codes .language-options button { position: relative; min-width: 2.75rem; min-height: 1.625rem; padding: 0 var(--space-2); border-radius: var(--radius-pill); color: var(--ink); font-size: .75rem; font-weight: var(--weight-bold); letter-spacing: .04em; }
 /* Invisible 44px touch target around the 26px pill buttons; vertical only, so CA and ES never overlap. */
 .interface-language-toggle .language-selector--codes .language-options button::before { position: absolute; inset: -9px 0; content: ''; }
 .interface-language-toggle .language-selector--codes .language-options button:hover { background: var(--paper-deep); }
@@ -80,7 +80,6 @@ button { cursor: pointer; }
 @media (max-width: 23.9375em) {
   .site-header-inner { gap: var(--space-2); padding-inline: calc(env(safe-area-inset-left, 0px) + var(--space-3)) calc(env(safe-area-inset-right, 0px) + var(--space-3)); }
   .site-actions { gap: 6px; }
-  .interface-language-toggle .language-selector--codes .language-options button { min-width: 2.125rem; }
   /* A contextual exit takes the language switch's place; the language stays in the menu. */
   .site-header:has(.global-back-button) .site-actions > .interface-language-toggle { display: none; }
   .site-header:has(.global-back-button) .site-menu-language { display: flex; }
@@ -154,33 +153,54 @@ button { cursor: pointer; }
 .home-copy { min-width: 0; }
 .home-copy h1 { max-width: 14ch; margin: 0; color: var(--ink); font: 800 var(--text-hero)/.98 var(--font-display); letter-spacing: -.04em; }
 .home-lede { max-width: 34ch; margin: var(--space-5) 0 0; color: var(--text-muted); font-size: clamp(1.0625rem, .85rem + .45vw, 1.3125rem); line-height: var(--leading-body); }
-.home-modes { margin-top: var(--space-8); }
+.home-modes { margin-top: var(--space-8); display: grid; gap: var(--space-6); max-width: 34rem; }
 .home-modes ul { margin: 0; padding: 0; list-style: none; }
-.mode-pair { display: grid; grid-template-columns: auto auto; justify-content: start; column-gap: var(--space-4); width: max-content; max-width: 100%; }
-.mode-pair .primary-action { min-width: 200px; }
-.mode-pair .primary-action, .mode-pair .secondary-action { display: flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 48px; padding: 12px 26px; text-decoration: none; width: auto; line-height: 1.2; text-align: center; }
-/* The main action's arrow is drawn, not text, so the link keeps its exact name; it nudges forward on hover. */
-.mode-pair .primary-action::after { content: '→' / ''; transition: transform 140ms ease; }
-.mode-pair .primary-action:hover::after { transform: translateX(3px); }
-.mode-caption { margin: var(--space-2) 0 0; color: var(--text-muted); font-size: var(--text-meta); line-height: 1.35; text-align: center; }
 .mode-icon { flex: 0 0 auto; width: 1.2em; height: 1.2em; }
-.mode-pair .secondary-action .mode-icon { fill: color-mix(in oklch, var(--oliva) 25%, var(--surface)); }
-.mode-daily { grid-column: 1 / -1; contain: inline-size; margin-top: var(--space-6); }
-/* The daily entry is tertiary: a hairline pill sized to its one line, with no fill or shadow, so it never outweighs
-   "Juga amb amics". A saffron disc on the icon keeps the daily colour. */
-.daily-entry { display: inline-grid; max-width: 100%; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-3); min-height: 48px; padding: var(--space-1) var(--space-4) var(--space-1) var(--space-1); border: 1px solid color-mix(in oklch, var(--ink) 30%, transparent); border-radius: var(--radius-pill); color: var(--ink); background: transparent; text-decoration: none; transition: background-color 140ms ease, transform 140ms ease, box-shadow 140ms ease; }
-.daily-entry .mode-icon { width: 2.25rem; height: 2.25rem; padding: .45rem; border-radius: 50%; background: var(--safra); }
+.mode-group { display: grid; gap: var(--space-2); min-width: 0; }
+.mode-group-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 var(--space-3); }
+.mode-group-head h2 { margin: 0; color: var(--ink); font: 700 var(--text-panel-title)/1.15 var(--font-display); letter-spacing: -.015em; }
+.mode-group-meta, .mode-group-quiet { color: var(--text-muted); font-size: var(--text-meta); font-weight: var(--weight-semibold); line-height: 1.35; }
+.mode-group-quiet { margin: 0; font-family: var(--font-ui); }
+/* "Juga amb amics": both ways to play with friends are one object (shared outline and shadow); the filled half is the
+   page's main action. Each half is a whole-row link with an arrow; pressing either presses the group. */
+.friends-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; border: 2px solid var(--ink); border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--shadow-ink); transition: box-shadow 140ms ease; }
+.friends-options li { display: grid; min-width: 0; }
+.friends-options li + li { border-left: 2px solid var(--ink); }
+.friends-options:has(a:active) { box-shadow: var(--shadow-ink-pressed); }
+.friends-option { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-3); min-height: 3.75rem; padding: var(--space-3) var(--space-4); color: var(--ink); text-decoration: none; transition: background-color 140ms ease; }
+.friends-option--online { color: var(--on-primary); background: var(--primary); }
+.friends-option--online:hover { background: var(--primary-hover); }
+.friends-option--local:hover { background: var(--paper-deep); }
+/* The ring sits inside the clipped group, on a surface-coloured gap so it reads on magrana too. */
+.friends-option:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: -6px; box-shadow: inset 0 0 0 3px var(--focus-gap); }
+.friends-option-icon { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border: 2px solid var(--ink); border-radius: 50%; color: var(--ink); background: var(--surface); }
+.friends-option-icon .mode-icon { width: 1.25rem; height: 1.25rem; }
+.friends-option-text { display: grid; min-width: 0; }
+.friends-option-label { font: 750 1.25rem/1.1 var(--font-display); letter-spacing: -.015em; overflow-wrap: anywhere; }
+.friends-option-caption { margin-top: 2px; font-size: var(--text-meta); font-weight: var(--weight-semibold); line-height: 1.3; }
+.friends-option--local .friends-option-caption { color: var(--text-muted); }
+/* "Pel teu compte": quieter by design, ruled links without fill or shadow. */
+.solo-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-block: 1.5px solid var(--ink); }
+.solo-options li { display: grid; min-width: 0; }
+.solo-options li + li { border-left: 1.5px solid var(--ink); }
+.solo-options a { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-3); min-height: 3.25rem; padding: var(--space-1) var(--space-3); color: var(--ink); text-decoration: none; transition: background-color 140ms ease; }
+.solo-options a:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; box-shadow: 0 0 0 3px var(--focus-gap); }
+.solo-options .mode-icon { width: 2.25rem; height: 2.25rem; padding: .45rem; border-radius: 50%; }
+.daily-entry .mode-icon { background: var(--safra); }
+.solo-option .mode-icon { background: var(--oliva-surface); }
+.daily-entry:hover { background: var(--warning-surface); }
+.solo-option:hover { background: var(--oliva-surface); }
+.solo-option-label { min-width: 0; font: 700 1.0625rem/1.15 var(--font-display); overflow-wrap: anywhere; }
 .daily-entry > span:not(.daily-arrow) { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-3); min-width: 0; }
 .daily-head { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-2); }
-.daily-title { color: var(--ink); font: 700 1.125rem/1.25 var(--font-display); text-decoration: underline transparent 1px; text-underline-offset: 4px; transition: text-decoration-color 140ms ease; }
+.daily-title { color: var(--ink); font: 700 1.0625rem/1.15 var(--font-display); }
 .daily-number { color: var(--ink); font-size: var(--text-meta); font-weight: var(--weight-bold); letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+/* Phones show only a played mark; wider screens show the full status line instead. */
+.daily-played { display: none; font-size: var(--text-meta); font-weight: var(--weight-bold); }
 .daily-caption { display: block; margin-top: 0; color: var(--text-muted); font-size: var(--text-meta); line-height: 1.35; }
 .daily-entry .daily-tomorrow { margin: 0; color: inherit; font: inherit; white-space: nowrap; }
-.daily-arrow { font-size: 1.25rem; line-height: 1; transition: transform 140ms ease; }
-.daily-entry:hover { border-color: var(--ink); background: var(--warning-surface); }
-.daily-entry:hover .daily-title { text-decoration-color: currentColor; }
-.daily-entry:hover .daily-arrow { transform: translateX(3px); }
-.home-modes a:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; box-shadow: 0 0 0 3px var(--focus-gap); }
+.daily-arrow, .friends-option-arrow { font: 700 1.25rem/1 var(--font-display); transition: transform 140ms ease; }
+:is(.friends-option, .solo-options a):hover :is(.daily-arrow, .friends-option-arrow) { transform: translateX(3px); }
 /* Board preview: a slightly rotated printed card with a saffron sticker, as in Lovable. Purely decorative. */
 .home-preview { position: relative; justify-self: end; width: min(100%, 30rem); padding: var(--space-8); border: 2px solid var(--ink); border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--shadow-ink); transform: rotate(1.25deg); }
 .preview-tag { position: absolute; top: -1rem; left: var(--space-6); padding: .25rem .75rem; border: 2px solid var(--ink); border-radius: var(--radius-control); color: var(--ink); background: var(--safra); font-size: var(--text-meta); font-weight: var(--weight-bold); line-height: 1.3; transform: rotate(-4deg); }
@@ -189,8 +209,6 @@ button { cursor: pointer; }
 .preview-drawing .hangman { display: block; width: 100%; height: 100%; max-width: 100%; max-height: 100%; }
 .preview-word { width: 100%; display: flex; justify-content: center; align-items: flex-end; gap: var(--space-3); color: var(--ink); }
 .preview-letter { display: inline-grid; place-items: center; width: 2.25rem; min-width: 2.25rem; min-height: 2.75rem; border-bottom: 3px solid var(--ink); font: 700 1.75rem/1.05 var(--font-display); }
-/* Phone-only hero actions (see the phone hero block below); tablets and desktop keep .home-modes. */
-.home-quick { display: none; }
 /* The homepage's one high-contrast moment: Catalan words on a full-bleed ink band between the hero and the modes.
    Identical copies drift left by one copy per cycle (seamless, linear, ~6px/s, set in HomePage); only the words move. */
 .home-page { overflow-x: clip; }
@@ -207,9 +225,10 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
 :root button.home-band:focus-visible { outline: 3px solid var(--safra); outline-offset: -12px; box-shadow: none; }
 /* Mode cards: one per real mode. Colour carries the mode; supporting text stays restrained. */
 .mode-cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
-.mode-card { grid-column: span 3; min-width: 0; }
-.mode-card--mar { grid-column: span 4; }
-.mode-card--safra { grid-column: span 2; }
+/* Rows follow the hero groups: online + Passa el mòbil, then daily + learning. */
+.mode-card { grid-column: span 2; min-width: 0; }
+.mode-cards .mode-card--mar, .mode-cards .mode-card--local { grid-column: span 3; }
+.mode-cards .mode-card--oliva { grid-column: span 4; }
 .mode-card > a { position: relative; height: 100%; min-height: 17rem; display: flex; flex-direction: column; justify-content: flex-end; gap: var(--space-6); padding: var(--space-10); overflow: hidden; border: 2px solid var(--ink); border-radius: var(--radius-card); color: var(--ink); background: var(--surface); box-shadow: var(--shadow-ink); text-decoration: none; transition: transform 160ms ease, box-shadow 160ms ease; }
 .mode-card > a:hover { transform: translate(-1px, -3px); box-shadow: var(--shadow-ink-hover); }
 .mode-card > a:active { transform: translate(2px, 2px); box-shadow: var(--shadow-ink-pressed); }
@@ -217,7 +236,7 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
 .mode-card--safra > a { background: var(--safra); }
 .mode-card--oliva > a { background: color-mix(in oklch, var(--oliva) 55%, var(--surface)); }
 /* Leave room for the illustration beside the text. */
-.mode-card--oliva .mode-card-text, .mode-card--paper .mode-card-text { max-width: min(26rem, 64%); }
+.mode-card--oliva .mode-card-text { max-width: min(26rem, 64%); }
 .mode-card-text { position: relative; z-index: 1; max-width: 26rem; }
 .mode-card h3 { margin: 0; font: 800 clamp(1.75rem, 1.25rem + 1.3vw, 2.625rem)/1.02 var(--font-display); letter-spacing: -.025em; }
 .mode-card-body { max-width: 36ch; margin: var(--space-3) 0 0; font-size: var(--text-body); line-height: var(--leading-body); }
@@ -234,7 +253,6 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
 .mode-art-hint { display: grid; gap: 2px; padding: var(--space-3) var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-inner); background: var(--surface); box-shadow: var(--shadow-ink-sm); transform: rotate(3deg); }
 .mode-art-hint span { color: var(--text-muted); font-size: var(--text-meta); }
 .mode-art-hint strong { font: 700 1.5rem/1.1 var(--font-display); }
-.mode-art-drawing .hangman { display: block; width: 7.5rem; height: auto; }
 .home-card, .lobby-card, .disconnect-page section, .howto-card { width: min(100%, 31rem); padding: clamp(20px, 6vw, 48px); border: 2px solid var(--ink); border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--shadow-ink); }
 .home-intro { margin-bottom: var(--space-8); text-align: center; }
 .home-intro--compact { margin-bottom: var(--space-6); }
@@ -805,10 +823,6 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
 .match-layout > .room-chat.is-empty, :root .match-over-layout > .room-chat.is-empty { align-self: start; height: auto; min-height: 0; }
 .match-layout > .room-chat.is-empty .chat-messages { flex: none; min-height: 7.5rem; }
 
-@media (min-width: 75em) {
-  .daily-title { font-size: 1.25rem; }
-  .mode-pair .primary-action, .mode-pair .secondary-action { min-height: 52px; }
-}
 @media (max-width: 62.4375em) {
   .howto-steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -860,11 +874,12 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
   .home-preview { justify-self: center; width: min(100%, 24rem); transform: rotate(1deg); }
   .preview-drawing { width: min(100%, 11rem); }
   .mode-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
-  .mode-card, .mode-card--mar, .mode-card--safra { grid-column: span 1; }
+  .mode-card, .mode-cards :is(.mode-card--mar, .mode-card--local, .mode-card--oliva) { grid-column: span 1; }
+  .home-modes { max-width: none; }
   .mode-card > a { min-height: 0; padding: var(--space-6); }
   .mode-card-art { display: none; }
   /* Without the illustration the text takes the whole card. */
-  .mode-card--oliva .mode-card-text, .mode-card--paper .mode-card-text { max-width: 36rem; }
+  .mode-card--oliva .mode-card-text { max-width: 36rem; }
   .home-card--join form { grid-template: "name" auto "next" auto "create" auto "divider" auto "join" auto "error" auto / minmax(0, 1fr); gap: var(--space-5); }
 }
 /* Phones: a compact hero (actions first, small preview), single-column cards without illustrations. */
@@ -874,17 +889,6 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
   .home-band { margin-block: var(--space-16) 3.75rem; padding-block: var(--space-3); }
   .home-hero { gap: var(--space-8); }
   .home-copy h1 { max-width: 17ch; line-height: 1.02; }
-  .home-lede { margin-top: var(--space-3); }
-  .home-modes { margin-top: var(--space-6); }
-  .mode-pair { grid-template-columns: minmax(0, 1fr); row-gap: var(--space-3); width: 100%; }
-  .mode-pair .primary-action { min-width: 0; }
-  .mode-daily { margin-top: var(--space-4); }
-  .home-preview { width: min(100%, 18rem); padding: var(--space-6) var(--space-5) var(--space-5); transform: none; }
-  .preview-board { row-gap: var(--space-2); }
-  .preview-drawing { width: 100px; }
-  .preview-word { gap: 5px; }
-  .preview-letter { width: 1.25rem; min-width: 1.25rem; min-height: 1.75rem; border-bottom-width: 2px; font-size: 1.125rem; }
-  .preview-tag { left: var(--space-4); }
   .section-head { margin-bottom: var(--space-5); }
   .mode-cards { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
   .mode-card > a { min-height: 0; padding: var(--space-6) var(--space-5); }
@@ -892,69 +896,46 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
   .ios-install-card { width: 100%; border-radius: 12px; }
   .ios-install-toggle { padding-inline: 12px; }
 }
-/* Phone hero (Phase 3C): headline → character → one dominant "Jugar" → two equal secondary cards. Same destinations as
-   .home-modes, which phones hide. Breakpoint in em, so enlarged text on wider screens also gets this single-column hero. */
+/* Phone hero: headline, then the lede beside a small character, then the two groups. The copy column dissolves into the
+   hero grid so the decorative preview can sit beside the lede; DOM and reading order are unchanged. Sized so both
+   multiplayer options fit at 375×553; the solo row fits from 390×664. */
 @media (max-width: 37.4375em) {
-  .home-hero { gap: var(--space-5); }
-  .home-modes { display: none; }
-  .home-preview { width: 100%; padding: 0; border: 0; background: none; box-shadow: none; }
-  .home-preview .preview-tag { display: none; }
-  .home-preview .preview-board { row-gap: var(--space-1); }
-  .home-preview .preview-drawing { width: min(52vw, 11.5rem); }
-  .home-quick { display: block; }
-  .home-quick ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
-  .home-quick li { display: grid; min-width: 0; }
-  .home-quick .quick-play-item { grid-column: 1 / -1; margin-bottom: var(--space-1); }
-  .home-quick a { color: var(--ink); text-decoration: none; transition: background-color 140ms ease, transform 140ms ease, box-shadow 140ms ease; }
-  .home-quick a:hover { transform: translate(-1px, -1px); }
-  .home-quick a:active { transform: translate(2px, 2px); box-shadow: var(--shadow-ink-pressed); }
-  .home-quick a:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 4px; box-shadow: 0 0 0 4px var(--focus-gap), var(--shadow-ink-pressed); }
-  .quick-play { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-4); min-height: 6.5rem; padding: var(--space-3) var(--space-5); border: 2px solid var(--ink); border-radius: var(--radius-card); color: var(--on-primary) !important; background: var(--primary); box-shadow: 4px 4px 0 var(--ink); }
-  .quick-play:hover { background: var(--primary-hover); box-shadow: 6px 6px 0 var(--ink); }
-  .quick-play-badge { display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border: 2px solid var(--ink); border-radius: 50%; background: var(--surface); box-shadow: var(--shadow-ink-sm); }
-  .quick-play-badge svg { width: 1.75rem; height: 1.75rem; margin-left: .2rem; fill: var(--magrana); stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
-  .quick-play-text { display: grid; min-width: 0; }
-  .quick-play-label { font: 800 var(--text-display)/1 var(--font-display); letter-spacing: -.03em; overflow-wrap: anywhere; }
-  .quick-play-caption { margin-top: var(--space-1); overflow-wrap: anywhere; text-wrap: balance; font-size: var(--text-meta); font-weight: var(--weight-semibold); line-height: var(--leading-ui); }
-  .quick-play-arrow { font: 700 1.75rem/1 var(--font-display); transition: transform 140ms ease; }
-  .quick-play:hover .quick-play-arrow { transform: translateX(3px); }
-  .quick-card { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--space-3); min-height: 4.25rem; padding: var(--space-2) var(--space-3); border: 2px solid var(--ink); border-radius: var(--radius-inner); box-shadow: var(--shadow-ink-sm); }
-  .quick-card--learn { background: var(--oliva-surface); }
-  .quick-card--daily { background: var(--warning-surface); }
-  .quick-card--learn:hover { background: color-mix(in oklch, var(--oliva) 40%, var(--surface)); }
-  .quick-card--daily:hover { background: var(--safra); }
-  .quick-card:hover { box-shadow: 3px 3px 0 var(--ink); }
-  .quick-card-icon { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border: 2px solid var(--ink); border-radius: 50%; background: var(--surface); }
-  .quick-card-icon .mode-icon { width: 1.25rem; height: 1.25rem; }
-  .quick-card-label { min-width: 0; font: 700 1.125rem/1.1 var(--font-display); letter-spacing: -.01em; text-wrap: balance; overflow-wrap: anywhere; }
-  .quick-card-tag { position: absolute; top: -.75rem; right: var(--space-2); padding: 0 .4rem; border: 2px solid var(--ink); border-radius: var(--radius-control); background: var(--safra); font-size: var(--text-label); font-weight: var(--weight-bold); line-height: 1.35; font-variant-numeric: tabular-nums; transform: rotate(3deg); }
+  .home-hero { grid-template-columns: minmax(0, 1fr) 5.5rem; grid-template-areas: "eyebrow eyebrow" "title title" "lede art" "modes modes"; align-items: center; gap: var(--space-4) var(--space-3); }
+  .home-copy { display: contents; }
+  .home-copy > .page-eyebrow { grid-area: eyebrow; justify-self: start; margin: 0; }
+  .home-copy h1 { grid-area: title; }
+  .home-lede { grid-area: lede; margin: 0; }
+  .home-preview { grid-area: art; justify-self: end; width: 100%; padding: 0; border: 0; background: none; box-shadow: none; transform: none; }
+  .home-preview :is(.preview-tag, .preview-word) { display: none; }
+  .home-preview .preview-drawing { width: 100%; }
+  .home-modes { grid-area: modes; max-width: none; margin-top: var(--space-1); gap: var(--space-4); }
+  .friends-options { grid-template-columns: minmax(0, 1fr); }
+  .friends-options li + li { border-left: 0; border-top: 2px solid var(--ink); }
+  .daily-caption { display: none; }
+  .daily-played { display: inline; }
+  /* Half-width solo links: the row itself is the affordance, so the label gets the arrow's width. */
+  .solo-options a { grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-2); padding-inline: var(--space-2); }
+  .solo-options .daily-arrow { display: none; }
+  .solo-options .mode-icon { width: 2rem; height: 2rem; padding: .4rem; }
+  /* Inline flow, so "Paraula del dia #79" wraps as text (two lines) rather than as three flex rows. */
+  .daily-head { display: block; }
+  .daily-head > :is(.daily-number, .daily-played) { white-space: nowrap; }
 }
-/* Small phones (≤359px): a smaller character and no arrow. */
-@media (max-width: 22.4375em) {
-  .home-preview .preview-drawing { width: min(100%, 9.5rem); }
-  .quick-play { column-gap: var(--space-3); padding-inline: var(--space-4); }
-  .quick-play-badge { width: 3rem; height: 3rem; }
-  .quick-play-arrow { display: none; }
+/* Short phones: the eyebrow chip gives its row to the modes (the illustration and palette still carry the season). */
+@media (max-width: 37.4375em) and (max-height: 39.9375em) {
+  .home-page { padding-top: var(--space-4); }
+  .home-copy > .page-eyebrow { display: none; }
+  .home-hero { grid-template-areas: "title title" "lede art" "modes modes"; }
 }
-/* Phones: the card icons lose their circle and the labels step down so "Aprende vocabulario" / "Paraula del dia"
-   keep whole words on two lines. */
-@media (max-width: 29.9375em) {
-  .quick-card { column-gap: var(--space-2); padding-inline: var(--space-2); }
-  .quick-card-icon { width: auto; height: auto; border: 0; background: none; }
-  .quick-card-label { font-size: 1rem; }
-}
-@media (max-width: 23.375em) {
-  .quick-card-label { font-size: .9375rem; }
-}
-/* Under 320 CSS px at the default size (or enlarged text): the secondary cards stack instead of clipping. */
+/* Under 320 CSS px at the default size (or 200% text on phones): one column, so the lede gets the full width and the
+   character sits below it; the friends options drop their decorative icon so labels keep one or two lines. */
 @media (max-width: 19.9375em) {
-  .home-quick ul { grid-template-columns: minmax(0, 1fr); }
-  .quick-play { grid-template-columns: minmax(0, 1fr); justify-items: center; row-gap: var(--space-2); padding-block: var(--space-4); text-align: center; }
-}
-@media (max-width: 23.75em) {
-  .daily-sep { display: none; }
-  .daily-entry .daily-tomorrow { display: block; }
-  .daily-entry .daily-tomorrow::first-letter { text-transform: uppercase; }
+  .home-hero { grid-template-columns: minmax(0, 1fr); grid-template-areas: "eyebrow" "title" "lede" "art" "modes"; }
+  .home-preview { justify-self: center; width: min(100%, 7rem); }
+  .friends-option { grid-template-columns: minmax(0, 1fr) auto; }
+  .friends-option-icon { display: none; }
+  .solo-options { grid-template-columns: minmax(0, 1fr); }
+  .solo-options li + li { border-left: 0; border-top: 1.5px solid var(--ink); }
 }
 @media (max-width: 41.25em) {
   .match-page { padding-bottom: 25px; }
@@ -1162,7 +1143,7 @@ body { background-image: radial-gradient(oklch(0.2 0.015 60 / 5%) .7px, transpar
 @media (prefers-reduced-motion: reduce) {
   .primary-action:not(:disabled):hover, .secondary-action:not(:disabled):hover, .primary-action:not(:disabled):active, .secondary-action:not(:disabled):active,
   .keyboard button:not(:disabled):hover, .mode-card > a:hover, .mode-card > a:active, .daily-entry:active,
-  .home-quick a:hover, .home-quick a:active, .quick-play:hover .quick-play-arrow { transform: none; }
+  :is(.friends-option, .solo-options a):hover :is(.daily-arrow, .friends-option-arrow) { transform: none; }
   .site-brand:hover .brand-badge { transform: none; }
 }
 
@@ -1225,13 +1206,9 @@ body { background-image: radial-gradient(oklch(0.2 0.015 60 / 5%) .7px, transpar
 
 /* Passa el mòbil: one phone passed around the table. Gates fill the screen with one action; private screens never
    share it with anything else. */
-.mode-cards .mode-card--local { grid-column: 1 / -1; }
 .mode-card--local > a { background: var(--mar-surface); }
 .mode-card--local .mode-card-text { max-width: min(30rem, 70%); }
 .mode-art-phone .mode-icon { display: block; width: clamp(4rem, 3rem + 3vw, 6rem); height: auto; color: var(--ink); }
-.home-quick .quick-local-item { grid-column: 1 / -1; }
-.quick-card--local { background: var(--mar-surface); }
-.quick-card--local:hover { background: color-mix(in oklch, var(--mar) 30%, var(--surface)); }
 
 .local-page { min-height: calc(100dvh - var(--header-height)); padding: var(--space-5) calc(env(safe-area-inset-right, 0px) + var(--space-4)) var(--space-10) calc(env(safe-area-inset-left, 0px) + var(--space-4)); }
 .local-setup-page, .local-stage, .local-page .local-header, .local-save-warning { width: min(100%, 46rem); margin-inline: auto; }

@@ -92,10 +92,17 @@ try {
     await evaluate(home, `localStorage.setItem('hangman-interface-language', '${language}')`)
     await navigate(home, '/')
     await waitFor(home, "document.querySelector('.home-modes') !== null")
-    for (const [width, height] of [[1440,900], [1024,768], [768,1024], [820,1180], [390,844], [320,568], [599,960], [600,960], [660,1000], [661,1000], [860,1180], [861,1180], [1024,1366], [844,390]]) {
-      await command('browsingContext.setViewport', { context: home, viewport: { width, height } })
-      checkHomeLayout(JSON.parse(await evaluate(home, homeMetrics)))
+    // Standard and Castanyada themes; 375×553 and 390×664 are the visible areas of an iPhone SE and 14 in Safari.
+    for (const season of ['', 'spooky']) {
+      await evaluate(home, season ? `document.documentElement.dataset.season = '${season}'` : 'delete document.documentElement.dataset.season')
+      await new Promise(resolve => setTimeout(resolve, 300)) // let the options' background transition settle before measuring contrast
+      for (const [width, height] of [[1440,900], [1024,768], [768,1024], [820,1180], [390,844], [390,664], [375,553], [320,568], [599,960], [600,960], [660,1000], [661,1000], [860,1180], [861,1180], [1024,1366], [844,390]]) {
+        await command('browsingContext.setViewport', { context: home, viewport: { width, height } })
+        checkHomeLayout(JSON.parse(await evaluate(home, homeMetrics)))
+      }
     }
+    await navigate(home, '/')
+    await waitFor(home, "document.querySelector('.home-modes') !== null")
   }
   await evaluate(home, "localStorage.setItem('hangman-interface-language', 'ca')")
   await navigate(home, '/paraula-del-dia/')
@@ -116,16 +123,15 @@ try {
   assert.equal(await evaluate(home, "getComputedStyle(document.querySelector('.daily-entry .daily-tomorrow')).fontSize"), '14px')
   assert.equal(await evaluate(home, "getComputedStyle(document.querySelector('.daily-entry .daily-tomorrow')).color"), await evaluate(home, "getComputedStyle(document.querySelector('.daily-caption')).color"))
   assert.equal(await evaluate(home, `document.querySelector('.home-modes').textContent.replace('Paraula del dia', '').includes(${JSON.stringify(secretDaily)})`), false)
-  // Phase 3C phone hero (320px here): the daily card tags a played day without revealing the word.
-  assert.equal(await evaluate(home, "getComputedStyle(document.querySelector('.home-quick')).display"), 'block')
-  assert.match(await evaluate(home, "document.querySelector('.quick-card--daily').textContent"), /^Paraula del dia#\d+ ✓ · Jugada$/)
-  assert.equal(await evaluate(home, `document.querySelector('.home-quick').textContent.replace('Paraula del dia', '').includes(${JSON.stringify(secretDaily)})`), false)
+  // Phone hero (320px here): the daily link marks a played day without revealing the word.
+  assert.equal(await evaluate(home, "getComputedStyle(document.querySelector('.daily-played')).display"), 'inline')
+  assert.match(await evaluate(home, "document.querySelector('.daily-entry .daily-head').textContent"), /^Paraula del dia #\d+ ✓ · Jugada$/)
   for (const attempt of ['{', JSON.stringify({ challengeId:'2000-01-01', guesses:['A'], completed:true, won:true })]) {
     await evaluate(home, `localStorage.setItem('penjat-daily-challenge', ${JSON.stringify(attempt)}); window.dispatchEvent(new Event('focus'))`)
     await waitFor(home, "document.querySelector('.daily-caption').textContent === 'La mateixa per a tothom'")
-    assert.match(await evaluate(home, "document.querySelector('.quick-card--daily').textContent"), /^Paraula del dia#\d+$/)
+    assert.match(await evaluate(home, "document.querySelector('.daily-entry .daily-head').textContent"), /^Paraula del dia #\d+$/)
   }
-  assert.equal(await evaluate(home, "document.querySelector('.home-modes .primary-action').textContent"), 'Juga amb amics')
+  assert.equal(await evaluate(home, "document.querySelector('.friends-option--online').textContent"), 'Juga amb amics: En líniaCadascú amb el seu mòbil→')
   console.log('Homepage daily status passed: completed game return, corrupt/outdated storage refresh, stable primary action.')
   console.log('Homepage responsive checks passed in CA/ES, including all six boundaries.')
   await navigate(home, '/multijugador/')

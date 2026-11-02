@@ -300,21 +300,33 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
           </span></p>
           <h1>{isCatalan ? <>Juga al penjat online <em>en català.</em></> : <>Juega a Penjat <em>online.</em></>}</h1>
           <p className="home-lede"><span className="home-season-default">{homeCopy.lede}</span><span className="spooky-only">{seasonalTranslations[interfaceLanguage].lede}</span></p>
+          {/* One hero navigation at every width: the two ways to play with friends as one group, then the solo modes. */}
           <nav className="home-modes" aria-label={homeCopy.modes}>
-            <ul className="mode-pair">
-              <li><a className="primary-action" href="/multijugador" aria-describedby="home-mp" onClick={route(onMultiplayer)}><ModeIcon mode="multiplayer" />{homeCopy.multiplayer}</a>
-                <p className="mode-caption" id="home-mp">{homeCopy.multiplayerCaption}</p></li>
-              <li><a className="secondary-action" href="/aprendre" aria-describedby="home-learn" onClick={route(onLearn)}><ModeIcon mode="learning" />{homeCopy.learning}</a>
-                <p className="mode-caption" id="home-learn">{homeCopy.learningCaption}</p></li>
-              <li className="mode-daily"><a className="daily-entry" href={DAILY_CHALLENGE_PUBLIC_PATH} onClick={route(onDaily)}>
-                <ModeIcon mode="daily" />
-                <span>
-                  <span className="daily-head"><span className="daily-title">{d.title}</span><span className="daily-number">#{daily.number}</span></span>
-                  <span className="daily-caption">{daily.status === 'new' ? d.sameForEveryone : <>{daily.status === 'won' ? d.wonWith(daily.mistakes) : d.lost}<span className="daily-sep" aria-hidden="true"> · </span><span className="daily-tomorrow">{d.comeBackTomorrow}</span></>}</span>
-                </span>
-                <span className="daily-arrow" aria-hidden="true">→</span>
-              </a></li>
-            </ul>
+            <section className="mode-group mode-group--friends" aria-labelledby="home-friends">
+              <div className="mode-group-head"><h2 id="home-friends">{homeCopy.multiplayer}</h2><span className="mode-group-meta">{homeCopy.friendsMeta}</span></div>
+              <ul className="friends-options">
+                <li><FriendsOption tone="online" href="/multijugador" onClick={route(onMultiplayer)} group={homeCopy.multiplayer} label={homeCopy.online} caption={homeCopy.onlineCaption} /></li>
+                <li><FriendsOption tone="local" href="/passa-el-mobil" onClick={route(onLocal)} group={homeCopy.multiplayer} label={homeCopy.local} caption={homeCopy.localCaption} /></li>
+              </ul>
+            </section>
+            <section className="mode-group mode-group--solo" aria-labelledby="home-solo">
+              <h2 id="home-solo" className="mode-group-quiet">{homeCopy.solo}</h2>
+              <ul className="solo-options">
+                <li><a className="daily-entry" href={DAILY_CHALLENGE_PUBLIC_PATH} onClick={route(onDaily)}>
+                  <ModeIcon mode="daily" />
+                  <span>
+                    {/* Real spaces between the parts: phones lay them out inline, so the name reads "Paraula del dia #79 · Jugada". */}
+                    <span className="daily-head"><span className="daily-title">{d.title}</span>{' '}<span className="daily-number">#{daily.number}</span>
+                      {daily.status !== 'new' && <>{' '}<span className="daily-played"><span aria-hidden="true">✓</span><span className="sr-only"> · {homeCopy.dailyPlayed}</span></span></>}</span>
+                    <span className="daily-caption">{daily.status === 'new' ? d.sameForEveryone : <>{daily.status === 'won' ? d.wonWith(daily.mistakes) : d.lost}<span className="daily-sep" aria-hidden="true"> · </span><span className="daily-tomorrow">{d.comeBackTomorrow}</span></>}</span>
+                  </span>
+                  <span className="daily-arrow" aria-hidden="true">→</span>
+                </a></li>
+                <li><a className="solo-option" href="/aprendre" onClick={route(onLearn)}>
+                  <ModeIcon mode="learning" /><span className="solo-option-label">{homeCopy.learning}</span><span className="daily-arrow" aria-hidden="true">→</span>
+                </a></li>
+              </ul>
+            </section>
           </nav>
         </section>
         <aside className="home-preview" aria-hidden="true">
@@ -329,29 +341,6 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
             </div>
           </div>
         </aside>
-        {/* Phones only (CSS): the same destinations as .home-modes, re-ranked below the illustration with one dominant action. */}
-        <nav className="home-quick" aria-label={homeCopy.modes}>
-          <ul>
-            <li className="quick-play-item"><a className="quick-play" href="/multijugador" onClick={route(onMultiplayer)}>
-              <span className="quick-play-badge" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M8 5.5v13l11-6.5z" /></svg></span>
-              <span className="quick-play-text"><span className="quick-play-label">{homeCopy.play}</span><span className="quick-play-caption">{homeCopy.playCaption}</span></span>
-              <span className="quick-play-arrow" aria-hidden="true">→</span>
-            </a></li>
-            <li><a className="quick-card quick-card--learn" href="/aprendre" onClick={route(onLearn)}>
-              <span className="quick-card-icon"><ModeIcon mode="learning" /></span>
-              <span className="quick-card-label">{homeCopy.quickLearning}</span>
-            </a></li>
-            <li><a className="quick-card quick-card--daily" href={DAILY_CHALLENGE_PUBLIC_PATH} onClick={route(onDaily)}>
-              <span className="quick-card-icon"><ModeIcon mode="daily" /></span>
-              <span className="quick-card-label">{d.title}</span>
-              <span className="quick-card-tag">#{daily.number}{daily.status !== 'new' && <><span aria-hidden="true"> ✓</span><span className="sr-only"> · {homeCopy.dailyPlayed}</span></>}</span>
-            </a></li>
-            <li className="quick-local-item"><a className="quick-card quick-card--local" href="/passa-el-mobil" onClick={route(onLocal)}>
-              <span className="quick-card-icon"><ModeIcon mode="local" /></span>
-              <span className="quick-card-label">{homeCopy.local}</span>
-            </a></li>
-          </ul>
-        </nav>
       </div>
 
       {showIosInstall && <section className="ios-install-card" aria-labelledby="ios-install-title">
@@ -385,18 +374,19 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
       <section className="home-cards" aria-labelledby="home-cards-title">
         <div className="section-head">
           <h2 id="home-cards-title">{homeCopy.cardsTitle}</h2>
+          {/* Rules are not a mode: a quiet link beside the heading instead of a fifth card. */}
+          <a className="howto-link" href="/com-es-juga" onClick={route(onHelp)}>{isCatalan ? 'Com es juga' : 'Cómo se juega'}<span aria-hidden="true">→</span></a>
         </div>
         <ul className="mode-cards">
-          <ModeCard tone="mar" href="/multijugador" onClick={route(onMultiplayer)} title={homeCopy.multiplayer} body={homeCopy.multiplayerCard} action={homeCopy.multiplayerCardAction}
+          {/* Same order as the hero groups: what each mode is, for visitors who scroll (and crawlable descriptions). */}
+          <ModeCard tone="mar" href="/multijugador" onClick={route(onMultiplayer)} title={homeCopy.online} body={homeCopy.multiplayerCard} action={homeCopy.multiplayerCardAction}
             art={<span className="mode-art-code">{'K7QF2'.split('').map((letter) => <span key={letter}>{letter}</span>)}</span>} />
+          <ModeCard tone="local" href="/passa-el-mobil" onClick={route(onLocal)} title={homeCopy.local} body={homeCopy.localCard} action={homeCopy.localCardAction}
+            art={<span className="mode-art-phone"><ModeIcon mode="local" /></span>} />
           <ModeCard tone="safra" href={DAILY_CHALLENGE_PUBLIC_PATH} onClick={route(onDaily)} title={d.title} body={homeCopy.dailyCard} action={homeCopy.dailyCardAction}
             art={<span className="mode-art-grid">{['hit', 'hit', 'miss', 'hit', 'hit', 'hit', 'miss', 'hit', 'hit', 'hit'].map((cell, index) => <i key={index} className={cell} />)}</span>} />
           <ModeCard tone="oliva" href="/aprendre" onClick={route(onLearn)} title={homeCopy.learning} body={homeCopy.learningCard} action={homeCopy.learningCardAction}
             art={<span className="mode-art-hint"><span lang="es">caracol</span><strong lang="ca">cargol</strong></span>} />
-          <ModeCard tone="paper" href="/com-es-juga" onClick={route(onHelp)} title={isCatalan ? 'Com es juga' : 'Cómo se juega'} body={homeCopy.helpCard} action={homeCopy.helpCardAction}
-            art={<span className="mode-art-drawing"><HangmanDrawing errors={3} /></span>} />
-          <ModeCard tone="local" href="/passa-el-mobil" onClick={route(onLocal)} title={homeCopy.local} body={homeCopy.localCard} action={homeCopy.localCardAction}
-            art={<span className="mode-art-phone"><ModeIcon mode="local" /></span>} />
         </ul>
       </section>
       <small className="sr-only">{getLanguageConfig(interfaceLanguage).name}</small>
@@ -461,7 +451,7 @@ function readStoredName() {
   return readStored('hangman-name') ?? ''
 }
 
-function ModeCard({ tone, href, onClick, title, body, action, art }: { tone: 'mar' | 'safra' | 'oliva' | 'paper' | 'local'; href: string; onClick: ReturnType<typeof route>; title: string; body: string; action: string; art: ReactNode }) {
+function ModeCard({ tone, href, onClick, title, body, action, art }: { tone: 'mar' | 'safra' | 'oliva' | 'local'; href: string; onClick: ReturnType<typeof route>; title: string; body: string; action: string; art: ReactNode }) {
   return <li className={`mode-card mode-card--${tone}`}>
     <a href={href} onClick={onClick}>
       <div className="mode-card-text">
@@ -472,6 +462,21 @@ function ModeCard({ tone, href, onClick, title, body, action, art }: { tone: 'ma
       <span className="mode-card-art" aria-hidden="true">{art}</span>
     </a>
   </li>
+}
+
+/** A whole-row link inside the "Juga amb amics" group. The hidden group name prefixes the visible label, so a links list
+ reads "Juga amb amics: En línia" while the visible label stays part of the accessible name. */
+function FriendsOption({ tone, href, onClick, group, label, caption }: { tone: 'online' | 'local'; href: string; onClick: ReturnType<typeof route>; group: string; label: string; caption: string }) {
+  const captionId = `home-${tone}-caption`
+  return <a className={`friends-option friends-option--${tone}`} href={href} aria-describedby={captionId} onClick={onClick}>
+    <span className="friends-option-icon"><ModeIcon mode={tone === 'online' ? 'multiplayer' : 'local'} /></span>
+    <span className="friends-option-text">
+      <span className="friends-option-label"><span className="sr-only">{group}: </span>{label}</span>
+      {/* Hidden from the name (it would repeat), announced once as the link's description. */}
+      <span className="friends-option-caption" id={captionId} aria-hidden="true">{caption}</span>
+    </span>
+    <span className="friends-option-arrow" aria-hidden="true">→</span>
+  </a>
 }
 
 function ModeIcon({ mode }: { mode: 'multiplayer' | 'learning' | 'daily' | 'local' }) {

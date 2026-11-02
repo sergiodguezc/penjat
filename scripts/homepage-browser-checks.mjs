@@ -2,87 +2,109 @@ import assert from 'node:assert/strict'
 
 export const homeMetrics = `JSON.stringify((() => {
   const box = (selector) => {
-    const el = document.querySelector(selector), r = el.getBoundingClientRect(), s = getComputedStyle(el)
-    return { x: r.x, y: r.y, width: r.width, height: r.height, bottom: r.bottom, fontSize: parseFloat(s.fontSize), lineHeight: parseFloat(s.lineHeight) }
+    const el = typeof selector === 'string' ? document.querySelector(selector) : selector
+    if (!el) return null
+    const r = el.getBoundingClientRect(), s = getComputedStyle(el)
+    return { x: r.x, y: r.y, width: r.width, height: r.height, bottom: r.bottom, right: r.right, shown: s.display !== 'none' && r.height > 0, fontSize: parseFloat(s.fontSize), lineHeight: parseFloat(s.lineHeight) }
   }
-  return {
-    viewport: [innerWidth, innerHeight], clientWidth: document.documentElement.clientWidth, overflow: document.documentElement.scrollWidth > innerWidth,
-    h1: box('h1'), primary: box('.home-modes .primary-action'), secondary: box('.home-modes .secondary-action'),
-    // Row alignment uses the untransformed list items: Phase 3B's hover lift moves a hovered action by up to 1px.
-    primaryItem: box('.home-modes li:has(> .primary-action)'), secondaryItem: box('.home-modes li:has(> .secondary-action)'),
-    daily: box('.daily-entry'), separator: box('.mode-daily'), shell: box('.home-shell'), header: box('.site-header'),
-    card: box('.home-preview'), slots: box('.preview-word'), drawing: box('.preview-drawing'), caption: box('.mode-caption'), dailyTitle: box('.daily-title'),
-    reminder: document.querySelector('.daily-entry .daily-tomorrow') ? box('.daily-entry .daily-tomorrow') : null,
-    ios: !!document.querySelector('.ios-install-card'),
+  // Computed oklch() colours are converted through color-mix() in sRGB, which serialises as rgb() or color(srgb …).
+  const probe = document.body.appendChild(document.createElement('i'))
+  const srgb = (color) => {
+    probe.style.color = 'color-mix(in srgb, ' + color + ' 100%, ' + color + ')'
+    const value = getComputedStyle(probe).color, numbers = value.match(/[\\d.]+/g).map(Number)
+    return (value.startsWith('color(') ? numbers.map(v => v * 255) : numbers).slice(0, 3).map(Math.round)
+  }
+  const srgbAlpha = (color) => { probe.style.color = color; const value = getComputedStyle(probe).color; return /\\/\\s*0\\)$|, 0\\)$/.test(value) ? 0 : 1 }
+  const lum = (color) => { const [r, g, b] = srgb(color).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }); return 0.2126 * r + 0.7152 * g + 0.0722 * b }
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) }
+  // The effective background: the nearest ancestor that paints one (Passa el mòbil shows the group's surface).
+  const background = (el) => { for (; el; el = el.parentElement) { const c = getComputedStyle(el).backgroundColor; if (srgbAlpha(c) > 0) return c } return getComputedStyle(document.body).backgroundColor }
+  const online = document.querySelector('.friends-option--online'), local = document.querySelector('.friends-option--local')
+  const onlineStyle = getComputedStyle(online), localStyle = getComputedStyle(local)
+  const metrics = {
+    viewport: [innerWidth, innerHeight], overflow: document.documentElement.scrollWidth > innerWidth, season: document.documentElement.dataset.season ?? '',
+    h1: box('h1'), lede: box('.home-lede'), eyebrow: box('.home-copy > .page-eyebrow'), shell: box('.home-shell'), header: box('.site-header'),
+    card: box('.home-preview'), drawing: box('.preview-drawing'), slots: box('.preview-word'),
+    modes: box('.home-modes'), friends: box('.friends-options'), online: box(online), local: box(local), daily: box('.daily-entry'), learn: box('.solo-option'),
+    dailyCaption: box('.daily-caption'), dailyPlayed: box('.daily-played'),
+    onlineContrast: contrast(onlineStyle.color, background(online)), localContrast: contrast(localStyle.color, background(local)),
+    onlineFilled: srgb(background(online)).join() !== srgb(background(local)).join(),
+    // Header CA/ES: the visible pill is 26px tall; a ::before extends each button's hit area vertically.
+    language: [...document.querySelectorAll('.site-actions > .interface-language-toggle button')].filter(el => el.getClientRects().length)
+      .map(el => ({ width: el.getBoundingClientRect().width, hit: el.getBoundingClientRect().height - 2 * parseFloat(getComputedStyle(el, '::before').top) })),
     headings: [...document.querySelectorAll('h1')].map(el => el.textContent),
     canonical: document.querySelector('link[rel=canonical]').href, title: document.title,
     description: document.querySelector('meta[name=description]').content,
-    // Phones (≤599px) swap .home-modes for the Phase 3C hero actions; exactly one of the two navigations is rendered.
-    modesShown: getComputedStyle(document.querySelector('.home-modes')).display !== 'none', quickShown: getComputedStyle(document.querySelector('.home-quick')).display !== 'none',
-    lede: box('.home-lede'), play: box('.quick-play'), playLabel: box('.quick-play-label'), learn: box('.quick-card--learn'), dailyCard: box('.quick-card--daily'), cardLabel: box('.quick-card-label'),
-    links: [...document.querySelectorAll('.home-modes a, .home-quick a')].filter(el => el.getClientRects().length).map(el => ({ href: el.getAttribute('href'), height: el.getBoundingClientRect().height }))
+    links: [...document.querySelectorAll('.home-modes a')].filter(el => el.getClientRects().length).map(el => { const r = el.getBoundingClientRect(); return { href: el.getAttribute('href'), height: r.height, width: r.width, bottom: r.bottom } }),
+    phoneOnly: document.querySelectorAll('.home-quick').length,
   }
+  probe.remove()
+  return metrics
 })())`
 
-export function checkHomeLayout(m, size = 's0') {
+export function checkHomeLayout(m) {
   const [width] = m.viewport
-  assert.equal(m.overflow, false, `Overflow at ${width}`)
+  const at = `${m.viewport.join('×')} ${m.season || 'standard'}`
+  assert.equal(m.overflow, false, `Overflow at ${at}`)
   assert.equal(m.headings.length, 1)
   assert.equal(m.canonical, 'https://penjat.cat/')
-  // Phones add the full-width "Passa el mòbil" card below the two secondary cards; the wide hero is unchanged.
-  assert.deepEqual(m.links.map(link => link.href), ['/multijugador', '/aprendre', '/paraula-del-dia', ...m.quickShown ? ['/passa-el-mobil'] : []])
-  assert.ok(m.links.every(link => link.height >= 48))
-  // Phase 3B adopts Lovable's display headline, capped at 4.75rem (76px).
+  // One hero navigation at every width: "Juga amb amics" (En línia, Passa el mòbil), then "Pel teu compte".
+  assert.equal(m.phoneOnly, 0, 'no phone-only copy of the modes')
+  assert.deepEqual(m.links.map(link => link.href), ['/multijugador', '/passa-el-mobil', '/paraula-del-dia', '/aprendre'], `Hero links at ${at}`)
+  assert.ok(m.links.every(link => link.height >= 48 && link.width >= 44), `Hero link targets at ${at}`)
+  // En línia is the filled, primary half; both halves keep AA text contrast in both themes.
+  assert.ok(m.onlineFilled, `En línia filled at ${at}`)
+  assert.ok(m.onlineContrast >= 4.5 && m.localContrast >= 4.5, `Option contrast ${m.onlineContrast.toFixed(2)}/${m.localContrast.toFixed(2)} at ${at}`)
   assert.ok(m.h1.fontSize <= 76)
   // The compact phone header and the full desktop header both stay well under a tenth of a tall viewport.
   assert.ok(m.header.height <= (width >= 661 ? 66 : 58), `Header height ${m.header.height}`)
-  if (width <= 599) checkPhoneHero(m)
-  else checkWideHero(m, size)
+  assert.ok(m.language.every(button => button.width >= 44 && button.hit >= 44), `Language targets at ${at}: ${JSON.stringify(m.language)}`)
+  if (width <= 599) checkPhoneHero(m, at)
+  else checkWideHero(m, at)
   // Phones keep a compact two-line maximum; wider layouts allow Lovable's three-line display headline.
-  if (width >= 390) assert.ok(Math.round(m.h1.height / m.h1.lineHeight) <= (width < 600 ? 2 : 3), `Headline at ${width}`)
+  if (width >= 390) assert.ok(Math.round(m.h1.height / m.h1.lineHeight) <= (width < 600 ? 2 : 3), `Headline at ${at}`)
 }
 
-// Phase 3C phone hero: headline → centred character → one dominant full-width "Jugar" → two equal, smaller cards.
-function checkPhoneHero(m) {
+// Phone hero: headline, then the lede beside a small character, then the friends group (stacked) and the solo row.
+function checkPhoneHero(m, at) {
   const [width, height] = m.viewport
-  assert.deepEqual([m.modesShown, m.quickShown], [false, true], `Phone hero navigation at ${width}`)
   const near = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance
-  assert.ok(m.h1.bottom <= m.lede.y && m.lede.bottom <= m.card.y && m.slots.bottom <= m.play.y && m.play.bottom < m.learn.y, 'Title → description → illustration → Jugar → cards')
-  assert.ok(near(m.drawing.x + m.drawing.width / 2, m.shell.x + m.shell.width / 2, 2), 'Illustration centred')
-  assert.ok(near(m.play.x, m.shell.x) && near(m.play.width, m.shell.width), `Jugar spans the content width at ${width}`)
-  assert.ok(m.play.height >= 100 && m.play.height <= 112, `Jugar height ${m.play.height}`)
-  assert.ok(near(m.learn.width, m.dailyCard.width, .5) && near(m.learn.height, m.dailyCard.height, .5), 'Secondary cards share one size')
-  if (width >= 320) {
-    assert.ok(near(m.learn.y, m.dailyCard.y, .5) && m.dailyCard.x > m.learn.x + m.learn.width, `Secondary cards side by side at ${width}`)
-    assert.ok(m.learn.height >= 64 && m.learn.height <= 76, `Secondary card height ${m.learn.height}`)
-  }
-  assert.ok(m.play.height >= 1.35 * m.learn.height && m.playLabel.fontSize >= 1.5 * m.cardLabel.fontSize, 'Jugar dominates the secondary cards')
-  // From 375×812 the whole hero, both secondary cards included, is in the first viewport; 320×568 scrolls naturally.
-  if (width >= 375 && height >= 812) assert.ok(m.dailyCard.bottom <= height, `Secondary actions below the fold at ${width}×${height}`)
+  assert.ok(m.h1.bottom <= m.lede.y && m.lede.bottom <= m.friends.y && m.friends.bottom <= m.daily.y, `Title → lede → friends → solo at ${at}`)
+  // From 320px the character sits beside the lede; narrower (or 200% text) it follows the full-width lede.
+  if (width >= 320) assert.ok(m.drawing.x >= m.lede.right - 1 && m.drawing.y < m.lede.bottom && m.drawing.bottom > m.lede.y, `Character beside the lede at ${at}`)
+  else assert.ok(m.drawing.y >= m.lede.bottom && m.drawing.bottom <= m.friends.y, `Character between lede and modes at ${at}`)
+  assert.ok(m.drawing.width >= 80, `Character keeps a readable size at ${at}`)
+  assert.equal(m.slots.shown, false)
+  assert.ok(near(m.friends.x, m.shell.x) && near(m.friends.width, m.shell.width), `Friends group spans the content width at ${at}`)
+  assert.ok(m.local.y >= m.online.bottom - 1 && near(m.local.x, m.online.x), `Friends options stacked at ${at}`)
+  assert.ok(m.online.height >= 56, `En línia height ${m.online.height}`)
+  if (width >= 320) assert.ok(near(m.daily.y, m.learn.y, .5) && m.learn.x > m.daily.x, `Solo links side by side at ${at}`)
+  assert.deepEqual([m.dailyCaption.shown, m.dailyPlayed === null || m.dailyPlayed.shown], [false, true], `Phone daily shows only the played mark at ${at}`)
+  // Short phones give the eyebrow's row to the modes; taller phones keep it (and the Castanyada chip).
+  assert.equal(m.eyebrow.shown, height >= 640, `Eyebrow at ${at}`)
+  // Spacing comes first on the iPhone SE (375×553 visible): both friends options are in the first viewport and the solo
+  // row starts in it. From 390×664 all four modes fit.
+  const [online, local] = m.links.map(link => link.bottom)
+  if (width >= 375 && height >= 553) assert.ok(online <= height && local <= height && m.daily.y < height, `Friends below the fold at ${at}`)
+  if (width >= 390 && height >= 664) assert.ok(m.links.every(link => link.bottom <= height), `Mode below the fold at ${at}: ${JSON.stringify(m.links.map(link => Math.round(link.bottom)))}`)
 }
 
-function checkWideHero(m, size) {
+function checkWideHero(m, at) {
   const [width, height] = m.viewport
-  assert.deepEqual([m.modesShown, m.quickShown], [true, false])
-  // Semantic scale: metadata is 14px below 1200px and 16px on spacious desktops; the daily title and CTAs step up there too.
-  const spacious = width >= 1200
-  assert.equal(m.caption.fontSize, spacious ? 16 : 14)
-  if (m.reminder) assert.equal(m.reminder.fontSize, spacious ? 16 : 14)
-  assert.equal(m.dailyTitle.fontSize, spacious ? 20 : 18)
-  // A 2px outline: 17px × 1.2 line-height + padding + borders = 48.4px.
-  const expectedHeight = spacious || (size === 's1' && width >= 600) ? 52 : 48
-  assert.ok(m.primary.height >= expectedHeight && m.primary.height <= expectedHeight + 1, `Primary height ${m.primary.height}`)
-  if (height >= 568) assert.ok(m.primary.bottom <= height, `Primary below fold at ${width}×${height}`)
-  assert.equal(m.primaryItem.y, m.secondaryItem.y)
-  assert.ok(m.secondaryItem.x > m.primaryItem.x)
+  const near = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance
+  assert.ok(near(m.online.y, m.local.y) && m.local.x >= m.online.right - 1, `Friends options side by side at ${at}`)
+  assert.ok(near(m.daily.y, m.learn.y, .5) && m.learn.x > m.daily.x, `Solo links side by side at ${at}`)
+  assert.ok(m.friends.bottom <= m.daily.y, `Friends before solo at ${at}`)
+  assert.equal(m.dailyCaption.shown, true, `Daily status line at ${at}`)
+  assert.equal(m.eyebrow.shown, true)
+  if (height >= 568) assert.ok(m.online.bottom <= height, `En línia below fold at ${at}`)
   assert.ok(m.drawing.y >= m.card.y + 16, 'Drawing remains inside the card padding')
   assert.ok(m.slots.bottom <= m.card.bottom - 16, 'Letter slots remain inside the card padding')
   if (width < 1000) {
-    // Stacked hero: the preview follows the actions and the daily entry, centred in the content column.
-    assert.ok(m.card.y > m.daily.bottom)
+    // Stacked hero: the preview follows the groups, centred in the content column.
+    assert.ok(m.card.y > m.modes.bottom)
     assert.ok(Math.abs((m.card.x + m.card.width / 2) - (m.shell.x + m.shell.width / 2)) <= 2, 'Preview centred')
-    assert.ok(m.separator.width <= m.shell.width)
-  } else assert.ok(m.card.x > m.primary.x + m.primary.width)
+  } else assert.ok(m.card.x > m.friends.right, `Preview beside the groups at ${at}`)
 }
 
 export async function checkHomeNavigation({ context, command, evaluate, waitFor, navigate }) {
@@ -129,7 +151,7 @@ export async function checkHomeNavigation({ context, command, evaluate, waitFor,
     await tab()
     assert.equal(await evaluate(context, 'document.activeElement.closest(".interface-language-toggle") !== null && document.activeElement.textContent'), code)
   }
-  for (const href of ['/multijugador', '/aprendre', '/paraula-del-dia']) {
+  for (const href of ['/multijugador', '/passa-el-mobil', '/paraula-del-dia']) {
     await tab()
     assert.equal(await evaluate(context, 'document.activeElement.closest(".home-modes") !== null && document.activeElement.getAttribute("href")'), href)
     assert.equal(await evaluate(context, 'document.activeElement.matches(":focus-visible")'), true)
@@ -146,7 +168,7 @@ export async function checkHomeNavigation({ context, command, evaluate, waitFor,
     await navigate(context, '/')
     await waitFor(context, "document.querySelector('.home-modes') !== null")
     const before = new Set((await command('browsingContext.getTree')).contexts.map(item => item.context))
-    const point = JSON.parse(await evaluate(context, "JSON.stringify((r => ({ x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }))(document.querySelector('.home-modes .primary-action').getBoundingClientRect()))"))
+    const point = JSON.parse(await evaluate(context, "JSON.stringify((r => ({ x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }))(document.querySelector('.friends-option--online').getBoundingClientRect()))"))
     if (button === 0) await command('input.performActions', { context, actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value: '\uE009' }] }] })
     await command('input.performActions', { context, actions: [{ type: 'pointer', id: 'mouse', parameters: { pointerType: 'mouse' }, actions: [{ type: 'pointerMove', ...point }, { type: 'pointerDown', button }, { type: 'pointerUp', button }] }] })
     await command('input.releaseActions', { context })
@@ -161,28 +183,32 @@ export async function checkHomeNavigation({ context, command, evaluate, waitFor,
       assert.equal(await evaluate(context, 'location.pathname'), '/')
     } finally { await command('browsingContext.close', { context: opened.context }) }
   }
-  // Phase 3C phone hero: after the header's menu button, Tab reaches Jugar and the two cards in order with a visible ring,
-  // Enter follows a card, and a click anywhere on the Jugar surface (here near its right edge) opens multiplayer.
+  // Phone hero: after the header's menu button, Tab reaches En línia, Passa el mòbil and the daily link in order with a
+  // visible ring, Enter follows the link, and a click near the right edge (the arrow) of each friends option routes in-app.
   await command('browsingContext.setViewport', { context, viewport: { width: 390, height: 844 } })
   for (const target of ['keyboard', 'pointer']) {
     await navigate(context, '/')
-    await waitFor(context, "document.querySelector('.home-quick a') !== null")
+    await waitFor(context, "document.querySelector('.friends-option') !== null")
     if (target === 'keyboard') {
       await evaluate(context, "document.querySelector('.site-menu-toggle').focus()")
-      for (const href of ['/multijugador', '/aprendre', '/paraula-del-dia']) {
+      for (const href of ['/multijugador', '/passa-el-mobil', '/paraula-del-dia']) {
         await tab()
-        assert.equal(await evaluate(context, 'document.activeElement.closest(".home-quick") !== null && document.activeElement.getAttribute("href")'), href)
+        assert.equal(await evaluate(context, 'document.activeElement.closest(".home-modes") !== null && document.activeElement.getAttribute("href")'), href)
         assert.equal(await evaluate(context, 'document.activeElement.matches(":focus-visible") && getComputedStyle(document.activeElement).outlineStyle'), 'solid')
       }
       await command('input.performActions', { context, actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value: '' }, { type: 'keyUp', value: '' }] }] })
       await waitFor(context, "location.pathname === '/paraula-del-dia/'")
     } else {
-      await evaluate(context, 'window.homeNavigationSentinel = 42')
-      const point = JSON.parse(await evaluate(context, "JSON.stringify((r => ({ x: Math.round(r.right - 12), y: Math.round(r.y + r.height / 2) }))(document.querySelector('.quick-play').getBoundingClientRect()))"))
-      await command('input.performActions', { context, actions: [{ type: 'pointer', id: 'mouse', parameters: { pointerType: 'mouse' }, actions: [{ type: 'pointerMove', ...point }, { type: 'pointerDown', button: 0 }, { type: 'pointerUp', button: 0 }] }] })
-      await command('input.releaseActions', { context })
-      await waitFor(context, "location.pathname === '/multijugador/' && document.querySelector('.setup') !== null")
-      assert.equal(await evaluate(context, 'window.homeNavigationSentinel'), 42, 'Jugar routes inside the app')
+      for (const [tone, path] of [['online', '/multijugador/'], ['local', '/passa-el-mobil/']]) {
+        await navigate(context, '/')
+        await waitFor(context, "document.querySelector('.friends-option') !== null")
+        await evaluate(context, 'window.homeNavigationSentinel = 42')
+        const point = JSON.parse(await evaluate(context, `JSON.stringify((r => ({ x: Math.round(r.right - 12), y: Math.round(r.y + r.height / 2) }))(document.querySelector('.friends-option--${tone}').getBoundingClientRect()))`))
+        await command('input.performActions', { context, actions: [{ type: 'pointer', id: 'mouse', parameters: { pointerType: 'mouse' }, actions: [{ type: 'pointerMove', ...point }, { type: 'pointerDown', button: 0 }, { type: 'pointerUp', button: 0 }] }] })
+        await command('input.releaseActions', { context })
+        await waitFor(context, `location.pathname === '${path}'`)
+        assert.equal(await evaluate(context, 'window.homeNavigationSentinel'), 42, `${tone} routes inside the app`)
+      }
     }
   }
   await command('browsingContext.setViewport', { context, viewport: { width: 1024, height: 768 } })

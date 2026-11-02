@@ -63,19 +63,19 @@ assert.match(howToEs, /Ya no están en la sala/)
 assert.doesNotMatch(howToCa, /Socket\.IO|RoundResult|servidor|cliente/)
 assert.doesNotMatch(howToEs, /Socket\.IO|RoundResult|servidor|cliente/)
 
-const F1_KEYS = ['lede', 'modes', 'multiplayer', 'multiplayerCaption', 'learning', 'learningCaption']
-const PHASE_3C_KEYS = ['play', 'playCaption', 'quickLearning', 'dailyPlayed']
+const F1_KEYS = ['lede', 'modes', 'multiplayer', 'learning']
+const GROUP_KEYS = ['friendsMeta', 'online', 'onlineCaption', 'localCaption', 'solo', 'dailyPlayed']
 const BAND_KEYS = ['bandPause', 'bandPlay']
 const LOCAL_KEYS = ['local', 'localCard', 'localCardAction']
 // Approved homepage strings, pinned literally.
 assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => F1_KEYS.includes(key)))])), {
-  ca: { lede: 'Tria una paraula i repta els amics a endevinar-la. Sense registre.', modes: 'Modes de joc', multiplayer: 'Juga amb amics', multiplayerCaption: 'Crea una sala · de 2 a 10', learning: 'Aprèn vocabulari', learningCaption: 'En solitari, amb pistes' },
-  es: { lede: 'Elige una palabra y reta a tus amigos a adivinarla. Sin registro.', modes: 'Modos de juego', multiplayer: 'Juega con amigos', multiplayerCaption: 'Crea una sala · de 2 a 10', learning: 'Aprende vocabulario', learningCaption: 'En solitario, con pistas' },
+  ca: { lede: 'Tria una paraula i repta els amics a endevinar-la. Sense registre.', modes: 'Modes de joc', multiplayer: 'Juga amb amics', learning: 'Aprèn vocabulari' },
+  es: { lede: 'Elige una palabra y reta a tus amigos a adivinarla. Sin registro.', modes: 'Modos de juego', multiplayer: 'Juega con amigos', learning: 'Aprende vocabulario' },
 })
 // Phase 3B homepage additions (eyebrow, mode cards and preview), pinned literally.
-assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => !F1_KEYS.includes(key) && !PHASE_3C_KEYS.includes(key) && !BAND_KEYS.includes(key) && !LOCAL_KEYS.includes(key)))])), {
-  ca: { eyebrow: 'El joc del penjat', cardsTitle: 'Tria com vols jugar', multiplayerCard: 'Sales privades de 2 a 10 persones. A cada torn, algú tria la paraula i la resta l’endevina.', multiplayerCardAction: 'Crea una sala', dailyCard: 'Una paraula nova cada dia, la mateixa per a tothom. Comparteix el resultat sense revelar-la.', dailyCardAction: 'Juga la d’avui', learningCard: 'Paraules catalanes per temes, amb una pista en castellà. En acabar, veus el significat, un exemple i una il·lustració.', learningCardAction: 'Comença a practicar', helpCard: 'Regles, torns, puntuació i perdó, explicats pas a pas.', helpCardAction: 'Llegeix les regles', previewTag: '6 lletres' },
-  es: { eyebrow: 'El juego del ahorcado', cardsTitle: 'Elige cómo quieres jugar', multiplayerCard: 'Salas privadas de 2 a 10 personas. En cada turno, alguien elige la palabra y el resto la adivina.', multiplayerCardAction: 'Crea una sala', dailyCard: 'Una palabra nueva cada día, la misma para todos. Comparte el resultado sin revelarla.', dailyCardAction: 'Juega la de hoy', learningCard: 'Palabras catalanas por temas, con una pista en español. Al terminar, ves el significado, un ejemplo y una ilustración.', learningCardAction: 'Empieza a practicar', helpCard: 'Reglas, turnos, puntuación y perdón, explicados paso a paso.', helpCardAction: 'Lee las reglas', previewTag: '6 letras' },
+assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => !F1_KEYS.includes(key) && !GROUP_KEYS.includes(key) && !BAND_KEYS.includes(key) && !LOCAL_KEYS.includes(key)))])), {
+  ca: { eyebrow: 'El joc del penjat', cardsTitle: 'Què és cada mode', multiplayerCard: 'Sales privades de 2 a 10 persones. A cada torn, algú tria la paraula i la resta l’endevina.', multiplayerCardAction: 'Crea una sala', dailyCard: 'Una paraula nova cada dia, la mateixa per a tothom. Comparteix el resultat sense revelar-la.', dailyCardAction: 'Juga la d’avui', learningCard: 'Paraules catalanes per temes, amb una pista en castellà. En acabar, veus el significat, un exemple i una il·lustració.', learningCardAction: 'Comença a practicar', previewTag: '6 lletres' },
+  es: { eyebrow: 'El juego del ahorcado', cardsTitle: 'Qué es cada modo', multiplayerCard: 'Salas privadas de 2 a 10 personas. En cada turno, alguien elige la palabra y el resto la adivina.', multiplayerCardAction: 'Crea una sala', dailyCard: 'Una palabra nueva cada día, la misma para todos. Comparte el resultado sin revelarla.', dailyCardAction: 'Juega la de hoy', learningCard: 'Palabras catalanas por temas, con una pista en español. Al terminar, ves el significado, un ejemplo y una ilustración.', learningCardAction: 'Empieza a practicar', previewTag: '6 letras' },
 })
 // "Passa el mòbil" entry, pinned literally; the offline claim is backed by the service worker (test:offline).
 assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => LOCAL_KEYS.includes(key)))])), {
@@ -87,10 +87,10 @@ assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([langu
   ca: { bandPause: 'Atura el moviment de les paraules', bandPlay: 'Reprèn el moviment de les paraules' },
   es: { bandPause: 'Detén el movimiento de las palabras', bandPlay: 'Reanuda el movimiento de las palabras' },
 })
-// Phase 3C phone hero actions, pinned literally.
-assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => PHASE_3C_KEYS.includes(key)))])), {
-  ca: { play: 'Jugar', playCaption: 'Amb amics · de 2 a 10', quickLearning: 'Aprèn vocabulari', dailyPlayed: 'Jugada' },
-  es: { play: 'Jugar', playCaption: 'Con amigos · de 2 a 10', quickLearning: 'Aprende vocabulario', dailyPlayed: 'Jugada' },
+// Hero groups ("Juga amb amics": En línia / Passa el mòbil; "Pel teu compte": daily / learning), pinned literally.
+assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => GROUP_KEYS.includes(key)))])), {
+  ca: { friendsMeta: 'De 2 a 10 jugadors', online: 'En línia', onlineCaption: 'Cadascú amb el seu mòbil', localCaption: 'Un sol mòbil, sense internet', solo: 'Pel teu compte', dailyPlayed: 'Jugada' },
+  es: { friendsMeta: 'De 2 a 10 jugadores', online: 'En línea', onlineCaption: 'Cada uno con su móvil', localCaption: 'Un solo móvil, sin internet', solo: 'Por tu cuenta', dailyPlayed: 'Jugada' },
 })
 for (const [language, title, fresh, won0, lost, tomorrow] of [
   ['ca', 'Paraula del dia', 'La mateixa per a tothom', 'Encertada sense errors', 'No ha pogut ser', 'torna demà'],
@@ -121,7 +121,17 @@ try {
       assert.equal(html.match(/<h1>(.*?)<\/h1>/)![1].replace(/<[^>]+>/g, ''), language === 'ca' ? 'Juga al penjat online en català.' : 'Juega a Penjat online.')
       assert.ok(html.includes(`<nav class="home-modes" aria-label="${copy.modes}">`))
       const nav = html.match(/<nav class="home-modes".*?<\/nav>/)![0]
-      assert.deepEqual([...nav.matchAll(/href="([^"]+)"/g)].map((match) => match[1]), ['/multijugador', '/aprendre', '/paraula-del-dia'])
+      // One hero navigation at every width: "Juga amb amics" (online, then Passa el mòbil), then "Pel teu compte".
+      assert.deepEqual([...nav.matchAll(/<a class="([^"]+)" href="([^"]+)"/g)].map((match) => [match[1], match[2]]), [['friends-option friends-option--online', '/multijugador'], ['friends-option friends-option--local', '/passa-el-mobil'], ['daily-entry', '/paraula-del-dia'], ['solo-option', '/aprendre']])
+      assert.deepEqual([...nav.matchAll(/<h2 [^>]*>(.*?)<\/h2>/g)].map((match) => match[1]), [copy.multiplayer, copy.solo])
+      assert.ok(nav.indexOf(`>${copy.friendsMeta}<`) > nav.indexOf(`>${copy.multiplayer}</h2>`))
+      // Each friends option is named "group: label" (the visible label stays in the name) and described by its caption.
+      for (const [tone, label, caption] of [['online', copy.online, copy.onlineCaption], ['local', copy.local, copy.localCaption]]) {
+        assert.ok(nav.includes(`aria-describedby="home-${tone}-caption"`))
+        assert.ok(nav.includes(`<span class="friends-option-label"><span class="sr-only">${copy.multiplayer}: </span>${label}</span>`))
+        assert.ok(nav.includes(`<span class="friends-option-caption" id="home-${tone}-caption" aria-hidden="true">${caption}</span>`))
+      }
+      assert.equal(nav.includes(`<span class="sr-only"> · ${copy.dailyPlayed}</span>`), state !== 'new', 'played mark only after playing')
       // State-dependent labels: the daily tag after playing, the band's resume label while paused.
       for (const [key, text] of Object.entries(copy)) if (key !== 'dailyPlayed' && key !== 'bandPlay') assert.ok(html.includes(text), text)
       for (const [, id] of nav.matchAll(/aria-describedby="([^"]+)"/g)) assert.ok(html.includes(`id="${id}"`))
@@ -131,16 +141,12 @@ try {
       assert.ok(!nav.replace(d.title, '').toLowerCase().includes(challenge.entry.answerCa.toLowerCase()))
       assert.ok(!html.includes(challenge.entry.definitionCa))
       assert.ok(!nav.includes('<button'))
-      // Phase 3C phone hero: same destinations, one primary "Jugar", two secondary cards; the daily tag marks a played day.
-      assert.ok(html.includes(`<nav class="home-quick" aria-label="${copy.modes}">`))
-      const quick = html.match(/<nav class="home-quick".*?<\/nav>/)![0]
-      assert.deepEqual([...quick.matchAll(/<a class="([^"]+)" href="([^"]+)"/g)].map((match) => [match[1], match[2]]), [['quick-play', '/multijugador'], ['quick-card quick-card--learn', '/aprendre'], ['quick-card quick-card--daily', '/paraula-del-dia'], ['quick-card quick-card--local', '/passa-el-mobil']])
-      assert.deepEqual([...quick.matchAll(/<a [^>]*>(.*?)<\/a>/g)].map((match) => match[1].replace(/<[^>]+>/g, '')),
-        [`${copy.play}${copy.playCaption}→`, copy.quickLearning, `${d.title}#${challenge.number}${state === 'new' ? '' : ` ✓ · ${copy.dailyPlayed}`}`, copy.local])
-      // Passa el mòbil: one mode card and one phone card.
+      assert.ok(!html.includes('home-quick'), 'no second, phone-only copy of the modes')
+      // Mode cards follow the hero groups; Passa el mòbil has one card.
+      assert.deepEqual([...html.matchAll(/<li class="mode-card mode-card--([a-z]+)"><a href="([^"]+)"/g)].map((match) => [match[1], match[2]]), [['mar', '/multijugador'], ['local', '/passa-el-mobil'], ['safra', '/paraula-del-dia'], ['oliva', '/aprendre']])
+      // "Com es juga" is a quiet link beside the cards' heading, not a fifth card.
+      assert.ok(html.includes(`<a class="howto-link" href="/com-es-juga">${language === 'ca' ? 'Com es juga' : 'Cómo se juega'}<span aria-hidden="true">→</span></a>`))
       assert.ok(html.includes(`<a href="/passa-el-mobil"><div class="mode-card-text"><h3>${copy.local}</h3><p class="mode-card-body">${copy.localCard}</p>`))
-      assert.ok(!quick.replace(d.title, '').toLowerCase().includes(challenge.entry.answerCa.toLowerCase()))
-      assert.ok(!quick.includes('<button'))
     }
     assert.equal(d.wonWith(1), language === 'ca' ? 'Encertada amb 1 error' : 'Acertada con 1 error')
     assert.equal(d.wonWith(2), language === 'ca' ? 'Encertada amb 2 errors' : 'Acertada con 2 errores')

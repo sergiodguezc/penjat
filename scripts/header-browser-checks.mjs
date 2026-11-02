@@ -40,8 +40,8 @@ export async function checkSiteHeader({ context, command, evaluate, waitFor, nav
     const toggle = await center('.site-menu-toggle')
     await click(toggle.x, toggle.y)
     assert.equal((await state()).expanded, 'true')
-    // A non-interactive spot below the open menu: the hero illustration's letter row (Phase 3C moved the mode cards up to y≈820).
-    const outside = JSON.parse(await evaluate(context, "JSON.stringify({ y: (r => r.y + r.height / 2)(document.querySelector('.preview-word').getBoundingClientRect()), menu: document.querySelector('.site-menu').getBoundingClientRect().bottom })"))
+    // A non-interactive spot below the open menu: the hero's quiet "Pel teu compte" group heading (x=30 is on its text).
+    const outside = JSON.parse(await evaluate(context, "JSON.stringify({ y: (r => r.y + r.height / 2)(document.querySelector('.mode-group-quiet').getBoundingClientRect()), menu: document.querySelector('.site-menu').getBoundingClientRect().bottom })"))
     assert.ok(outside.y > outside.menu + 8, 'Outside-click target lies below the open menu')
     await click(30, outside.y)
     assert.equal((await state()).expanded, 'false')

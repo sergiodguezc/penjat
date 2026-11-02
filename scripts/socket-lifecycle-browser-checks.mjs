@@ -42,7 +42,7 @@ export async function checkSocketLifecycle({ command, evaluate, waitFor, navigat
     await navigate(tab, '/')
     await evaluate(tab, "localStorage.setItem('hangman-name', 'Connexió')")
     await navigate(tab, '/')
-    await click(tab, '.home-modes .primary-action')
+    await click(tab, '.friends-option--online')
     await waitFor(tab, "document.querySelector('.setup') !== null")
     await online(tab)
     const attempts = await evaluate(tab, 'window.__socketAudit.attempts')
@@ -59,7 +59,7 @@ export async function checkSocketLifecycle({ command, evaluate, waitFor, navigat
     await waitFor(tab, "location.pathname === '/'")
     await offline(tab)
 
-    await click(tab, '.home-modes .primary-action')
+    await click(tab, '.friends-option--online')
     await online(tab)
     await evaluate(tab, "document.querySelector('.entry-create').requestSubmit()")
     await waitFor(tab, "document.querySelector('.lobby-page') !== null")
