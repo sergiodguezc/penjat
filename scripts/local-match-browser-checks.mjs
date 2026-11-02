@@ -5,6 +5,7 @@
 //   TEST_SERVER_URL=http://127.0.0.1:3002 BIDI_URL=ws://127.0.0.1:9222 npm run test:browser:local
 import assert from 'node:assert/strict'
 import { pathToFileURL } from 'node:url'
+import { checkLocalSetup } from './local-setup-browser-checks.mjs'
 
 const SESSION_KEY = 'hangman-room-session'
 const MATCH_KEY = 'penjat-local-match'
@@ -28,6 +29,7 @@ export const AUDIT = `() => {
 }`
 
 export async function checkLocalMatch({ origin, io, command, evaluate, waitFor, navigate, newTab }) {
+  await checkLocalSetup({ command, evaluate, waitFor, navigate, newTab })
   const profile = (await command('browser.createUserContext')).userContext
   await command('script.addPreloadScript', { functionDeclaration: AUDIT, userContexts: [profile] })
   const tab = await newTab(profile)
@@ -63,16 +65,25 @@ export async function checkLocalMatch({ origin, io, command, evaluate, waitFor, 
   // Setup: validation, add/remove, then a two-player, one-volta match.
   await click('.local-setup .primary-action')
   await waitFor(tab, "document.querySelector('.local-setup .form-error') !== null")
+  await waitFor(tab, "document.activeElement === document.querySelector('.local-players input[aria-invalid=true]')")
   await click('.local-add')
+  await waitFor(tab, "document.activeElement === document.querySelector('.local-players li:last-child input')")
   assert.equal(await evaluate(tab, "document.querySelectorAll('.local-players li').length"), 3)
   await click('.local-players li:nth-child(3) .local-remove')
+  await waitFor(tab, "document.activeElement === document.querySelector('.local-players li:last-child input')")
   assert.equal(await evaluate(tab, "document.querySelectorAll('.local-players li').length"), 2)
   await setValue('.local-players li:nth-child(1) input', 'Anna')
   await setValue('.local-players li:nth-child(2) input', 'anna')
   await click('.local-setup .primary-action')
   await waitFor(tab, "document.querySelector('.local-setup .form-error')?.textContent.includes('diferent')")
+  await waitFor(tab, "document.activeElement === document.querySelector('.local-players li:nth-child(2) input[aria-invalid=true]')")
   await setValue('.local-players li:nth-child(2) input', 'Bernat')
+  await click('.local-setup .lobby-rules-configure')
+  await waitFor(tab, "document.querySelector('.local-settings-dialog[open]') !== null")
   await click('.target-selector button:first-child')
+  await click('.local-settings-dialog .primary-action')
+  await waitFor(tab, "document.activeElement === document.querySelector('.local-setup .lobby-rules-configure')")
+  assert.equal(await evaluate(tab, "document.querySelector('.local-setup .lobby-rules-pills').textContent"), 'En català1 ronda')
   await click('.local-setup .primary-action')
   await waitFor(tab, "document.querySelector('.handoff') !== null")
   const setter = await gateTitle()

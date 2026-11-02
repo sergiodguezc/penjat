@@ -70,7 +70,7 @@ try {
   assert.equal(writeStored('hangman-game-language', 'es', throwing), false)
 
   // Initial rendering of every public page, including the daily challenge and learning.
-  for (const [pathname, text] of [['/', 'Juga al penjat online en català.'], ['/multijugador/', multiplayerTranslations.ca.setupTitle], ['/paraula-del-dia/', dailyTranslations.ca.title], ['/aprendre/', 'Aprèn vocabulari'], ['/com-es-juga/', 'Com es juga'], ['/passa-el-mobil/', 'Un sol mòbil, tota la colla.']] as const) {
+  for (const [pathname, text] of [['/', 'Juga al penjat online en català.'], ['/multijugador/', multiplayerTranslations.ca.setupTitle], ['/paraula-del-dia/', dailyTranslations.ca.title], ['/aprendre/', 'Aprèn vocabulari'], ['/com-es-juga/', 'Com es juga'], ['/passa-el-mobil/', 'Passa el mòbil']] as const) {
     browserWindow.location.pathname = pathname
     const html = renderToStaticMarkup(<App />)
     assert.ok(html.replace(/<[^>]+>/g, '').includes(text), `${pathname} renders with blocked storage`)

@@ -39,11 +39,18 @@ for (const language of ['ca', 'es'] as const) {
   const l = localTranslations[language]
   const html = render(language)
   assert.equal((html.match(/<h1>/g) ?? []).length, 1)
-  assert.ok(html.includes(l.setupAccent) && html.includes(l.seatingHint) && html.includes(l.start) && html.includes(l.addPlayer))
+  assert.ok(html.includes(`<h1>${l.title}. <em>${l.setupAccent}</em></h1>`) && html.includes(l.seatingHint) && html.includes(l.start) && html.includes(l.addPlayer))
+  assert.ok(html.includes('class="setup lobby-card local-setup"') && html.includes('class="player-list"'), 'local participants reuse the lobby panel and badges')
+  assert.ok(html.includes('class="page-head local-setup-heading"') && html.includes(`<p class="page-eyebrow page-eyebrow--mar">${l.setupMode}</p>`), 'same hero hierarchy as the online entry page')
+  assert.ok(!html.includes('local-lede'), 'no oversized introductory paragraph')
   assert.equal((html.match(/<input /g) ?? []).length, 2, 'two players to start with')
   assert.ok(html.includes(`aria-label="${l.playerLabel(1)}"`) && html.includes(`aria-label="${l.playerLabel(2)}"`))
   assert.equal((html.match(/class="local-remove"[^>]*disabled=""/g) ?? []).length, 2, 'two players cannot be removed')
-  assert.ok(html.includes(multiplayerTranslations[language].voltes) && html.includes('aria-pressed="true">3</button>'), 'default 3 voltes')
+  const mt = multiplayerTranslations[language]
+  assert.ok(html.includes(mt.invitationRules) && html.includes('aria-haspopup="dialog"') && html.includes(mt.configure))
+  assert.ok(html.includes(`<li>${mt.languagePill('ca')}</li><li>${mt.roundsPill(3)}</li>`), 'default language and 3 rounds are summary chips')
+  assert.ok(!html.includes('class="target-selector"'), 'settings controls mount only in the dialog')
+  assert.equal((html.match(/class="primary-action"/g) ?? []).length, 1, 'one primary start action')
   assert.ok(!html.includes(l.resumeTitle))
 }
 
@@ -121,7 +128,7 @@ for (const language of ['ca', 'es'] as const) {
   define('sessionStorage', { value: memory() })
   define('window', { value: { location: { pathname: '/passa-el-mobil/', search: '', hash: '' }, history: { state: null, replaceState() {}, pushState() {} }, matchMedia: () => ({ matches: false }) } })
   const html = renderToStaticMarkup(<App />)
-  assert.ok(html.includes(localTranslations.ca.setupAccent))
+  assert.ok(html.includes(`<h1>${localTranslations.ca.title}. <em>${localTranslations.ca.setupAccent}</em></h1>`))
   assert.ok(!html.includes(multiplayerTranslations.ca.restoringTitle), 'no online restore on the local route')
   assert.equal(store.values.get(ROOM_SESSION_KEY), session)
   assert.equal(store.values.has(LOCAL_MATCH_STORAGE_KEY), false)

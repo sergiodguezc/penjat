@@ -3,14 +3,14 @@ import type { LocalSetupError } from './match'
 
 const ca = {
   title: 'Passa el mòbil',
+  setupMode: 'Multijugador local',
   setupAccent: 'Un sol mòbil, tota la colla.',
-  setupLede: 'Qui tria la paraula l’escriu en secret i la resta l’endevina per torns, passant-vos el mòbil.',
   players: 'Jugadors',
   seatingHint: 'Escriviu els noms en l’ordre en què seieu: el mòbil passarà en aquest ordre.',
   playerLabel: (number: number) => `Jugador ${number}`,
   addPlayer: 'Afegeix un jugador',
   removePlayer: (label: string) => `Treu ${label}`,
-  start: 'Comença la partida',
+  start: 'Començar la partida',
   setupErrors: {
     'player-count': 'Calen de 2 a 10 jugadors.',
     'invalid-name': 'Escriviu un nom per a cada jugador (fins a 24 caràcters).',
@@ -67,8 +67,8 @@ const ca = {
 
 const es: typeof ca = {
   title: 'Pasa el móvil',
+  setupMode: 'Multijugador local',
   setupAccent: 'Un solo móvil, todo el grupo.',
-  setupLede: 'Quien elige la palabra la escribe en secreto y el resto la adivina por turnos, pasándoos el móvil.',
   players: 'Jugadores',
   seatingHint: 'Escribid los nombres en el orden en que estáis sentados: el móvil pasará en ese orden.',
   playerLabel: (number) => `Jugador ${number}`,

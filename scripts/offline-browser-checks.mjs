@@ -89,7 +89,10 @@ try {
   await ready()
   await setValue('.local-players li:nth-child(1) input', 'Anna')
   await setValue('.local-players li:nth-child(2) input', 'Bernat')
+  await click('.local-setup .lobby-rules-configure')
+  await waitFor(tab, "document.querySelector('.local-settings-dialog[open]') !== null")
   await click('.target-selector button:first-child')
+  await click('.local-settings-dialog .primary-action')
   await click('.local-setup .primary-action')
   for (const [turn, word, letters] of [[1, 'gat', 'GAT'], [2, 'gos', 'GOS']]) {
     await unlock()

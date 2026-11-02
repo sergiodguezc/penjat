@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
 import { flushSync } from 'react-dom'
 import { ALPHABETS, MAX_ERRORS, type Language } from '../../shared/game'
-import { DEFAULT_VOLTES, SUPPORTED_VOLTES, type PublicPlayer, type Voltes } from '../../shared/protocol'
+import { DEFAULT_VOLTES, SUPPORTED_VOLTES, type PublicPlayer } from '../../shared/protocol'
 import { ErrorMeter } from '../components/ErrorMeter'
 import { HangmanDrawing } from '../components/HangmanDrawing'
 import { Keyboard } from '../components/Keyboard'
@@ -15,7 +15,7 @@ import { createTurnClock, HEARTBEAT_MS } from '../local/clock'
 import { localTranslations } from '../local/i18n'
 import {
   createLocalMatch, guesserBoard, localMatchResult, MAX_LOCAL_PLAYERS, MAX_PLAYER_NAME_LENGTH, MIN_LOCAL_PLAYERS, nextSetterId, playableGuess, playerName,
-  reduceLocalMatch, requiredGate, roundNumber, roundResults, setterId, totalTurns, voltaNumber, type LocalAction, type LocalMatch, type LocalSetupError,
+  normalizePlayerName, reduceLocalMatch, requiredGate, roundNumber, roundResults, setterId, totalTurns, voltaNumber, type LocalAction, type LocalMatch, type LocalSettings, type LocalSetupError,
 } from '../local/match'
 import { createPrivacyGuard } from '../local/privacy'
 import { clearLocalMatch, readLocalMatch, writeLocalMatch } from '../local/storage'
@@ -335,65 +335,80 @@ function Setup({ language, gameLanguage, saved, notice, onResume, onAbandon, onS
   const mt = multiplayerTranslations[language]
   const nextKey = useRef(2)
   const [rows, setRows] = useState(() => [{ key: 0, name: '' }, { key: 1, name: '' }])
-  const [settings, setSettings] = useState<{ gameLanguage: Language; voltes: Voltes }>({ gameLanguage, voltes: DEFAULT_VOLTES })
-  const [error, setError] = useState<LocalSetupError | null>(null)
+  const [settings, setSettings] = useState<LocalSettings>({ gameLanguage, voltes: DEFAULT_VOLTES })
+  const [editing, setEditing] = useState(false)
+  const [error, setError] = useState<{ code: LocalSetupError; rowKey?: number } | null>(null)
   const [created, setCreated] = useState<LocalMatch | null>(null)
   const offline = useOfflineReadiness()
   const inputs = useRef(new Map<number, HTMLInputElement>())
   const focusKey = useRef<number | null>(null)
-  useEffect(() => { if (focusKey.current !== null) { inputs.current.get(focusKey.current)?.focus(); focusKey.current = null } }, [rows])
+  useEffect(() => { if (focusKey.current !== null) { inputs.current.get(focusKey.current)?.focus(); focusKey.current = null } }, [rows, error])
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
     const result = createLocalMatch(rows.map((row) => row.name), settings)
-    if (!result.ok) { setError(result.error); return }
+    if (!result.ok) {
+      const names = rows.map((row) => normalizePlayerName(row.name)?.toLocaleLowerCase())
+      const index = result.error === 'invalid-name' ? names.findIndex((name) => !name)
+        : result.error === 'duplicate-name' ? names.findIndex((name, i) => names.indexOf(name) < i) : -1
+      const rowKey = rows[index]?.key
+      focusKey.current = rowKey ?? null
+      setError({ code: result.error, rowKey }); return
+    }
     setError(null); setCreated(result.match); onStart(result.match)
   }
   const add = () => { const key = nextKey.current++; focusKey.current = key; setRows((current) => [...current, { key, name: '' }]); setError(null) }
-  const remove = (key: number) => { setRows((current) => current.filter((row) => row.key !== key)); setError(null) }
+  const remove = (key: number) => {
+    const index = rows.findIndex((row) => row.key === key)
+    focusKey.current = (rows[index + 1] ?? rows[index - 1]).key
+    setRows((current) => current.filter((row) => row.key !== key)); setError(null)
+  }
 
   return <div className="local-setup-page">
-    <header className="page-head">
-      <p className="page-eyebrow page-eyebrow--mar">{mt.multiplayerMode}</p>
+    <header className="page-head local-setup-heading">
+      <p className="page-eyebrow page-eyebrow--mar">{l.setupMode}</p>
       <h1>{l.title}. <em>{l.setupAccent}</em></h1>
-      <p className="local-lede">{l.setupLede}</p>
       {offline !== 'unsupported' && <p className={`offline-status is-${offline}`} role="status"><span aria-hidden="true">{offline === 'ready' ? '✓' : '·'}</span> {l.offline[offline]}</p>}
     </header>
     {notice && notice !== 'newer' && <p className="local-notice" role="status">{l[notice]}</p>}
-    {saved ? <section className="setup local-resume" aria-labelledby="local-resume-title">
+    {saved ? <section className="setup lobby-card local-resume" aria-labelledby="local-resume-title">
       <h2 id="local-resume-title">{l.resumeTitle}</h2>
       <p className="local-resume-summary">{l.resumeSummary(roundNumber(saved), totalTurns(saved), saved.players.length)}</p>
       <p className="local-resume-players">{saved.players.map((player) => player.name).join(' · ')}</p>
       <button type="button" className="primary-action" onClick={onResume}>{l.resume}</button>
       <button type="button" className="secondary-action" onClick={onAbandon}>{l.abandon}</button>
-    </section> : <form className="setup local-setup" noValidate onSubmit={submit} aria-label={l.title}>
+    </section> : <form className="setup lobby-card local-setup" noValidate onSubmit={submit} aria-label={l.title}>
       {notice === 'newer' && <p className="local-notice" role="status">{l.newer}</p>}
       <fieldset className="local-players">
-        <legend>{l.players}</legend>
+        <legend><span>{l.players}</span><small aria-live="polite">{rows.length} / {MAX_LOCAL_PLAYERS}</small></legend>
         <p className="setup-hint" id="local-seating-hint">{l.seatingHint}</p>
-        <ol>{rows.map((row, index) => {
+        <ol className="player-list">{rows.map((row, index) => {
           const label = l.playerLabel(index + 1)
           return <li key={row.key}>
             <span className="local-seat" aria-hidden="true">{index + 1}</span>
             <input ref={(element) => { if (element) inputs.current.set(row.key, element); else inputs.current.delete(row.key) }} value={row.name} maxLength={MAX_PLAYER_NAME_LENGTH}
-              aria-label={label} placeholder={label} autoComplete="off" autoCapitalize="words" aria-describedby={index === 0 ? 'local-seating-hint' : undefined}
+              aria-label={label} placeholder={label} autoComplete="off" autoCapitalize="words" aria-invalid={error?.rowKey === row.key || undefined}
+              aria-describedby={error?.rowKey === row.key ? 'local-setup-error local-seating-hint' : 'local-seating-hint'}
               onChange={(event) => { const name = event.target.value; setRows((current) => current.map((candidate) => candidate.key === row.key ? { ...candidate, name } : candidate)); setError(null) }} />
             <button type="button" className="local-remove" aria-label={l.removePlayer(row.name.trim() || label)} disabled={rows.length <= MIN_LOCAL_PLAYERS} onClick={() => remove(row.key)}>
-              <span aria-hidden="true">×</span>
+              ×
             </button>
           </li>
         })}</ol>
         <button type="button" className="secondary-action local-add" disabled={rows.length >= MAX_LOCAL_PLAYERS} onClick={add}>+ {l.addPlayer}</button>
       </fieldset>
-      <div className="language-field"><span aria-hidden="true">{mt.gameLanguage}</span>
-        <LanguageSelector language={settings.gameLanguage} label={mt.gameLanguage} onChange={(value) => setSettings((current) => ({ ...current, gameLanguage: value }))} /></div>
-      <fieldset className="target-selector"><legend>{mt.voltes}</legend><div>
-        {SUPPORTED_VOLTES.map((value) => <button type="button" key={value} className={settings.voltes === value ? 'active' : ''} aria-pressed={settings.voltes === value}
-          onClick={() => setSettings((current) => ({ ...current, voltes: value }))}>{value}</button>)}
-      </div></fieldset>
-      {error && <p className="form-error" role="alert">{l.setupErrors[error]}</p>}
+      <section className="invitation-rules lobby-rules" aria-labelledby="local-rules-title">
+        <div className="lobby-rules-head">
+          <h2 id="local-rules-title">{mt.invitationRules}</h2>
+          <button type="button" className="secondary-action lobby-rules-configure" aria-haspopup="dialog"
+            onClick={(event) => { event.currentTarget.focus(); setEditing(true) }}>{mt.configure}</button>
+        </div>
+        <ul className="lobby-rules-pills" aria-live="polite"><li>{mt.languagePill(settings.gameLanguage)}</li><li>{mt.roundsPill(settings.voltes)}</li></ul>
+      </section>
+      {error && <p id="local-setup-error" className="form-error" role="alert">{l.setupErrors[error.code]}</p>}
       <button className="primary-action">{l.start}</button>
     </form>}
+    {editing && <LocalSettingsDialog language={language} settings={settings} onChange={setSettings} onClose={() => setEditing(false)} />}
     {confirmReplace && created && <Modal className="exit-confirmation-dialog" labelledBy="local-replace-title" describedBy="local-replace-body" onCancel={onCancelReplace}>
       <h2 id="local-replace-title">{l.replaceTitle}</h2>
       <p id="local-replace-body">{l.replaceBody}</p>
@@ -403,4 +418,41 @@ function Setup({ language, gameLanguage, saved, notice, onResume, onAbandon, onS
       </div>
     </Modal>}
   </div>
+}
+
+function LocalSettingsDialog({ language, settings, onChange, onClose }: {
+  language: Language; settings: LocalSettings; onChange: (settings: LocalSettings) => void; onClose: () => void
+}) {
+  const t = multiplayerTranslations[language]
+  const heading = useRef<HTMLHeadingElement>(null)
+  // As in RoomChat, follow the visible viewport while the iPhone keyboard is closing or the screen rotates.
+  useEffect(() => {
+    const dialog = heading.current!.closest('dialog')!
+    const viewport = window.visualViewport
+    const resize = () => {
+      const height = viewport?.height ?? window.innerHeight
+      dialog.style.setProperty('--local-viewport-height', `${height}px`)
+      dialog.style.setProperty('--local-dialog-center', `${(viewport?.offsetTop ?? 0) + height / 2}px`)
+    }
+    resize()
+    window.addEventListener('resize', resize)
+    viewport?.addEventListener('resize', resize); viewport?.addEventListener('scroll', resize)
+    return () => {
+      window.removeEventListener('resize', resize)
+      viewport?.removeEventListener('resize', resize); viewport?.removeEventListener('scroll', resize)
+    }
+  }, [])
+  return <Modal className="lobby-settings-dialog local-settings-dialog" labelledBy="local-settings-title" onCancel={onClose}>
+    <h2 id="local-settings-title" ref={heading}>{t.invitationRules}</h2>
+    <fieldset className="lobby-rules-controls">
+      <legend className="sr-only">{t.invitationRules}</legend>
+      <div className="language-field"><span aria-hidden="true">{t.gameLanguage}</span>
+        <LanguageSelector language={settings.gameLanguage} label={t.gameLanguage} onChange={(gameLanguage) => onChange({ ...settings, gameLanguage })} /></div>
+      <fieldset className="target-selector"><legend>{t.voltes}</legend><div>
+        {SUPPORTED_VOLTES.map((voltes) => <button type="button" key={voltes} className={settings.voltes === voltes ? 'active' : ''} aria-pressed={settings.voltes === voltes}
+          onClick={() => onChange({ ...settings, voltes })}>{voltes}</button>)}
+      </div></fieldset>
+    </fieldset>
+    <div className="exit-confirmation-actions"><button type="button" className="primary-action" onClick={onClose}>{t.settingsDone}</button></div>
+  </Modal>
 }
