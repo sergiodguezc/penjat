@@ -31,6 +31,7 @@ flowchart LR
 | Absence and empty-room timers | `GameManager` (injectable scheduler) | Away 2 min after socket loss, or at once when a permitted player continues without a blocking one (seat kept); room deleted 30 min after nobody is connected |
 | Room view, chat display, typing display | `App` | Current client |
 | Name, languages, learning progress (`penjat-learning`) | `localStorage` | Browser origin |
+| "Passa el mòbil" match (players, roster, step, word, guessers' letters and active time) | Pure reducer `local/match.ts`; `localStorage` `penjat-local-match` (version 1, `local/storage.ts`) | Device, until abandoned or replaced; never sent anywhere. Interface not built yet |
 | Room code/player ID/reconnect token | `localStorage` (`hangman-room-session`, version 1; legacy unversioned sessionStorage entries are migrated) | Browser profile: survives refresh, closing and reopening the tab, and mobile tab discards; shared by tabs of one profile |
 
 Clients send intent (`game:guess`, `round:set-word`, etc.). Server resolves socket identity, validates, mutates `GameRoom`, acknowledges and broadcasts individually serialized `viewFor(playerId)` snapshots. Guessers never receive the active secret word or other players' private progress; setter observation receives a selected board and setter-only forgiveness requests. Chat uses separate events and a bounded in-memory history of 50 messages. Completion retains the room for rematches. Only explicit departure removes membership (the last one deletes the room); after the reconnect grace a disconnected player is away, keeping the seat while the game moves on, and a room with nobody connected expires after the empty-room TTL.
@@ -41,7 +42,7 @@ Clients send intent (`game:guess`, `round:set-word`, etc.). Server resolves sock
 
 The offline Python pipeline is in `scripts/vocab_pipeline.py`, with small command wrappers. Source/license and review provenance live in `data/README.md`; approved baseline is `docs/vocabulary-v1.md`. Experiments under `data/experiments/` are ignored and must not become runtime dependencies. Reviewed metadata is merged by stable ID using `data/review/linguistic-metadata.json`. Ordinary builds never call external APIs.
 
-`shared/game.ts` is the active shared normalization/matching implementation. Older `src/game/game.ts` and word lists remain; inspect callers before reusing them. Learning and daily rules are similar but have different session/persistence lifecycles.
+`shared/game.ts` is the active shared normalization/matching implementation; `shared/round.ts` holds the per-guess transition (forgiveness at the sixth error) and round scoring that `GameRoom` and the local "Passa el mòbil" reducer (`src/local/match.ts`) both use. Older `src/game/game.ts` and word lists remain; inspect callers before reusing them. Learning and daily rules are similar but have different session/persistence lifecycles.
 
 ## Styling and typography
 
