@@ -422,10 +422,7 @@ function WordBand({ pauseLabel, playLabel }: { pauseLabel: string; playLabel: st
   </span>
   if (still) return <div className={className}>{words}</div>
   const label = paused ? playLabel : pauseLabel
-  // The visible pause/play mark shows that the band is a control; the button's label names the action.
-  return <button type="button" className={className} aria-label={label} title={label} onClick={() => setPaused((current) => !current)}>{words}
-    <span className="home-band-control" aria-hidden="true"><span><svg viewBox="0 0 16 16" focusable="false">{paused ? <path d="M5 3.5v9l7.5-4.5z" /> : <path d="M4.5 3.5h2.25v9H4.5zm4.75 0h2.25v9H9.25z" />}</svg></span></span>
-  </button>
+  return <button type="button" className={className} aria-label={label} title={label} onClick={() => setPaused((current) => !current)}>{words}</button>
 }
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'

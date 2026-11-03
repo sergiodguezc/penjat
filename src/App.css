@@ -214,7 +214,7 @@ button { cursor: pointer; }
 /* The homepage's one high-contrast moment: Catalan words on a full-bleed ink band between the hero and the modes.
    Identical copies drift left by one copy per cycle (seamless, linear, ~6px/s, set in HomePage); only the words move. */
 .home-page { overflow-x: clip; }
-.home-band { --band-bg: var(--ink); position: relative; display: block; width: 100vw; margin: 6rem calc(50% - 50vw) 0; padding-block: var(--space-4); overflow: hidden; border: 0; border-radius: 0; color: var(--paper); background: var(--band-bg); text-align: left; }
+.home-band { position: relative; display: block; width: 100vw; margin: 6rem calc(50% - 50vw) 0; padding-block: var(--space-4); overflow: hidden; border: 0; border-radius: 0; color: var(--paper); background: var(--ink); text-align: left; }
 .home-band-track { display: flex; width: max-content; margin: 0; white-space: nowrap; font: italic 600 clamp(1.25rem, .95rem + 1.1vw, 1.875rem)/1.25 var(--font-display); font-synthesis: style; letter-spacing: -.01em; }
 .home-band-copy { flex: none; display: flex; width: var(--band-shift, auto); }
 /* Every word carries its own star, so each copy has the same width and copies join without a seam. */
@@ -222,14 +222,9 @@ button { cursor: pointer; }
 .home-band.is-moving .home-band-track { animation: band-drift var(--band-duration) linear infinite; will-change: transform; }
 .home-band.is-paused .home-band-track { animation-play-state: paused; }
 @keyframes band-drift { to { transform: translateX(calc(-1 * var(--band-shift))); } }
-/* The band is its own pause control: a round pause/play mark at its end (words fade out beneath it), a pointer
-   cursor, a tooltip and an inset saffron focus ring. With reduced motion the band is static and has no mark. */
+/* The band is its own pause control: no visible button; a pointer cursor, a tooltip and an inset saffron focus ring. */
 button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
 :root button.home-band:focus-visible { outline: 3px solid var(--safra); outline-offset: -12px; box-shadow: none; }
-.home-band-control { position: absolute; inset: 0 0 0 auto; display: grid; place-items: center end; width: 7rem; padding-right: calc(env(safe-area-inset-right, 0px) + var(--space-4)); background: linear-gradient(to right, transparent, var(--band-bg) 55%); pointer-events: none; }
-.home-band-control > span { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border: 1.5px solid color-mix(in oklch, currentColor 60%, transparent); border-radius: 50%; background: var(--band-bg); transition: border-color 140ms ease; }
-.home-band-control svg { width: .875rem; height: .875rem; fill: currentColor; }
-button.home-band:hover .home-band-control > span { border-color: var(--safra); }
 
 /* "Com es juga": a full-bleed paper-deep panel opened by the band. Four outlined steps (no shadows: they explain, they
    are not buttons) tell one word's story with the real drawing; numbered saffron stickers echo the hero's tag. */

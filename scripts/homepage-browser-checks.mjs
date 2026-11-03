@@ -213,7 +213,7 @@ export async function checkHomeNavigation({ context, command, evaluate, waitFor,
       }
     }
   }
-  // Below the hero: the band (one control with a visible pause/play mark) opens "Com es juga", whose four steps sit in
+  // Below the hero: the band (its own pause control, with no visible button) opens "Com es juga", whose four steps sit in
   // 4, 2 or 1 columns; Tab goes hero → band → rules link → footer, and nothing scrolls sideways.
   for (const [width, height, columns] of [[1280, 800, 4], [768, 1024, 2], [390, 844, 1]]) {
     await command('browsingContext.setViewport', { context, viewport: { width, height } })
@@ -221,13 +221,13 @@ export async function checkHomeNavigation({ context, command, evaluate, waitFor,
     await waitFor(context, "document.querySelector('.home-how') !== null")
     const how = JSON.parse(await evaluate(context, `JSON.stringify((() => {
       const box = (element) => element.getBoundingClientRect()
-      const band = box(document.querySelector('.home-band')), control = box(document.querySelector('.home-band-control > span')), panel = box(document.querySelector('.home-how'))
+      const band = box(document.querySelector('.home-band')), panel = box(document.querySelector('.home-how'))
       const steps = [...document.querySelectorAll('.how-step')].map(box)
       return { overflow: document.documentElement.scrollWidth > innerWidth, columns: new Set(steps.map((step) => Math.round(step.x))).size, count: steps.length,
-        controlInside: control.width >= 32 && control.x >= band.x && control.right <= band.right && control.y >= band.y && control.bottom <= band.bottom,
+        bandButtons: document.querySelectorAll('.home-band button, .home-band [tabindex]').length,
         joined: Math.abs(panel.y - band.bottom) <= 1, panelWidth: Math.round(panel.width), heroX: Math.round(box(document.querySelector('.home-copy h1')).x), howX: Math.round(box(document.querySelector('.home-how-head h2')).x) }
     })())`))
-    assert.deepEqual([how.overflow, how.count, how.columns, how.controlInside, how.joined], [false, 4, columns, true, true], `Com es juga at ${width}: ${JSON.stringify(how)}`)
+    assert.deepEqual([how.overflow, how.count, how.columns, how.bandButtons, how.joined], [false, 4, columns, 0, true], `Com es juga at ${width}: ${JSON.stringify(how)}`)
     assert.ok(Math.abs(how.heroX - how.howX) <= 1, `Com es juga aligns with the hero at ${width}: ${JSON.stringify(how)}`)
   }
   await command('browsingContext.setViewport', { context, viewport: { width: 1024, height: 768 } })
@@ -238,7 +238,7 @@ export async function checkHomeNavigation({ context, command, evaluate, waitFor,
   assert.equal(await evaluate(context, "document.activeElement.classList.contains('home-band') && document.activeElement.getAttribute('aria-label')"), await evaluate(context, "document.documentElement.lang === 'es' ? 'Detén el movimiento de las palabras' : 'Atura el moviment de les paraules'"))
   assert.equal(await evaluate(context, 'document.activeElement.matches(":focus-visible")'), true)
   await command('input.performActions', { context, actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value: '\uE007' }, { type: 'keyUp', value: '\uE007' }] }] })
-  assert.equal(await evaluate(context, "document.querySelector('.home-band').classList.contains('is-paused') && document.querySelector('.home-band-control path').getAttribute('d').startsWith('M5 3.5')"), true, 'Enter pauses the band and shows the play mark')
+  assert.equal(await evaluate(context, "document.querySelector('.home-band').classList.contains('is-paused') && document.querySelector('.home-band').getAttribute('aria-label')"), await evaluate(context, "document.documentElement.lang === 'es' ? 'Reanuda el movimiento de las palabras' : 'Reprèn el moviment de les paraules'"), 'Enter pauses the band and relabels it')
   await tab()
   assert.equal(await evaluate(context, 'document.activeElement.closest(".home-how") !== null && document.activeElement.getAttribute("href")'), '/com-es-juga')
   await tab()

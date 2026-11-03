@@ -46,7 +46,7 @@
 .autumn-leaf { position: absolute; top: var(--space-4); right: var(--space-5); width: 3rem; height: auto; transform: rotate(18deg); pointer-events: none; }
 :root[data-season="spooky"] .home-preview { background: #302238; border-color: var(--border); box-shadow: 5px 5px 0 var(--paper-deep); }
 :root[data-season="spooky"] .home-copy h1 { font-variation-settings: 'SOFT' 100, 'WONK' 1; }
-:root[data-season="spooky"] .home-band { --band-bg: var(--paper-deep); color: var(--ink); border-block: 1px solid var(--border); }
+:root[data-season="spooky"] .home-band { color: var(--ink); background: var(--paper-deep); border-block: 1px solid var(--border); }
 /* The band is paper-deep here, so the panel it opens takes the page colour to keep the band visible as its own strip. */
 :root[data-season="spooky"] .home-how { --how-bg: var(--paper); }
 :root[data-season="spooky"] :is(.page-eyebrow--mar, .page-eyebrow--magrana) { color: var(--paper); }
