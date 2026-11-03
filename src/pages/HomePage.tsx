@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import type { Language } from '../../shared/game'
 import type { Ack, PlayerGameView, RoomEntry, RoomPreview, RoomSession } from '../../shared/protocol'
 import { Modal } from '../components/Modal'
@@ -367,30 +367,10 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
       {notice && <p className="form-error home-notice" role="alert">{errorMessage(notice, t)}</p>}
     </section>
 
-    {/* Decorative divider between the hero and the modes: Catalan words drifting slowly on an ink band. */}
+    {/* Decorative divider: Catalan words drifting slowly on an ink band, which opens the "Com es juga" panel below. */}
     <WordBand pauseLabel={homeCopy.bandPause} playLabel={homeCopy.bandPlay} />
-
-    <div className="home-shell">
-      <section className="home-cards" aria-labelledby="home-cards-title">
-        <div className="section-head">
-          <h2 id="home-cards-title">{homeCopy.cardsTitle}</h2>
-          {/* Rules are not a mode: a quiet link beside the heading instead of a fifth card. */}
-          <a className="howto-link" href="/com-es-juga" onClick={route(onHelp)}>{isCatalan ? 'Com es juga' : 'Cómo se juega'}<span aria-hidden="true">→</span></a>
-        </div>
-        <ul className="mode-cards">
-          {/* Same order as the hero groups: what each mode is, for visitors who scroll (and crawlable descriptions). */}
-          <ModeCard tone="mar" href="/multijugador" onClick={route(onMultiplayer)} title={homeCopy.online} body={homeCopy.multiplayerCard} action={homeCopy.multiplayerCardAction}
-            art={<span className="mode-art-code">{'K7QF2'.split('').map((letter) => <span key={letter}>{letter}</span>)}</span>} />
-          <ModeCard tone="local" href="/passa-el-mobil" onClick={route(onLocal)} title={homeCopy.local} body={homeCopy.localCard} action={homeCopy.localCardAction}
-            art={<span className="mode-art-phone"><ModeIcon mode="local" /></span>} />
-          <ModeCard tone="safra" href={DAILY_CHALLENGE_PUBLIC_PATH} onClick={route(onDaily)} title={d.title} body={homeCopy.dailyCard} action={homeCopy.dailyCardAction}
-            art={<span className="mode-art-grid">{['hit', 'hit', 'miss', 'hit', 'hit', 'hit', 'miss', 'hit', 'hit', 'hit'].map((cell, index) => <i key={index} className={cell} />)}</span>} />
-          <ModeCard tone="oliva" href="/aprendre" onClick={route(onLearn)} title={homeCopy.learning} body={homeCopy.learningCard} action={homeCopy.learningCardAction}
-            art={<span className="mode-art-hint"><span lang="es">caracol</span><strong lang="ca">cargol</strong></span>} />
-        </ul>
-      </section>
-      <small className="sr-only">{getLanguageConfig(interfaceLanguage).name}</small>
-    </div>
+    <HowItWorks copy={homeCopy} onHelp={onHelp} />
+    <small className="sr-only">{getLanguageConfig(interfaceLanguage).name}</small>
   </main>
 }
 
@@ -442,7 +422,10 @@ function WordBand({ pauseLabel, playLabel }: { pauseLabel: string; playLabel: st
   </span>
   if (still) return <div className={className}>{words}</div>
   const label = paused ? playLabel : pauseLabel
-  return <button type="button" className={className} aria-label={label} title={label} onClick={() => setPaused((current) => !current)}>{words}</button>
+  // The visible pause/play mark shows that the band is a control; the button's label names the action.
+  return <button type="button" className={className} aria-label={label} title={label} onClick={() => setPaused((current) => !current)}>{words}
+    <span className="home-band-control" aria-hidden="true"><span><svg viewBox="0 0 16 16" focusable="false">{paused ? <path d="M5 3.5v9l7.5-4.5z" /> : <path d="M4.5 3.5h2.25v9H4.5zm4.75 0h2.25v9H9.25z" />}</svg></span></span>
+  </button>
 }
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
@@ -451,17 +434,38 @@ function readStoredName() {
   return readStored('hangman-name') ?? ''
 }
 
-function ModeCard({ tone, href, onClick, title, body, action, art }: { tone: 'mar' | 'safra' | 'oliva' | 'local'; href: string; onClick: ReturnType<typeof route>; title: string; body: string; action: string; art: ReactNode }) {
-  return <li className={`mode-card mode-card--${tone}`}>
-    <a href={href} onClick={onClick}>
-      <div className="mode-card-text">
-        <h3>{title}</h3>
-        <p className="mode-card-body">{body}</p>
-        <span className="mode-card-action">{action}<span aria-hidden="true"> →</span></span>
-      </div>
-      <span className="mode-card-art" aria-hidden="true">{art}</span>
-    </a>
-  </li>
+// One word's story, mechanically consistent: CARGOL is set; C and O hit while E and S miss (2 errors); A and R hit while
+// I, T, U and N miss (6 errors, forgiveness); after the grant G and L solve it, still at 6 errors.
+const HOW_STEPS = [
+  { errors: 0, word: '______', misses: '' },
+  { errors: 2, word: 'C___O_', misses: 'ES' },
+  { errors: 6, word: 'CAR_O_', misses: 'ESITUN' },
+  { errors: 6, word: 'CARGOL', misses: 'ESITUN', solved: true },
+] as const
+
+/** "Com es juga": four steps of one round with the real drawing (and Castanyada fire); the art is decorative, the
+ text carries the rules. */
+function HowItWorks({ copy, onHelp }: { copy: typeof homeTranslations.ca; onHelp: () => void }) {
+  return <section className="home-how" aria-labelledby="home-how-title"><div className="home-how-inner">
+    <div className="home-how-head"><h2 id="home-how-title">{copy.howTitle} <em>{copy.howTitleAccent}</em></h2><p>{copy.howIntro}</p></div>
+    <ol className="how-steps">{HOW_STEPS.map((step, index) => {
+      const text: { title: string; body: string; spooky?: string } = copy.howSteps[index]
+      const solved = 'solved' in step
+      return <li key={step.word + step.errors} className={`how-step${solved ? ' how-step--solved' : ''}`}>
+        <div className="how-art" aria-hidden="true">
+          <span className="how-number">{index + 1}</span>
+          {index === 2 && <span className="how-sticker">{copy.howForgive}</span>}
+          {solved && <span className="how-sticker how-sticker--solved">{copy.howSolved}</span>}
+          <HangmanDrawing errors={step.errors} mood={solved ? 'win' : 'neutral'} />
+          <span className="how-word" lang="ca">{[...step.word].map((letter, slot) => <span key={slot}>{letter === '_' ? '' : letter}</span>)}</span>
+          <span className="how-misses">{[...step.misses].join(' ')}</span>
+        </div>
+        <div className="how-text"><h3>{text.title}</h3>
+          <p>{text.spooky ? <><span className="home-season-default">{text.body}</span><span className="spooky-only">{text.spooky}</span></> : text.body}</p></div>
+      </li>
+    })}</ol>
+    <div className="how-foot"><p>{copy.howNote}</p><a className="howto-link" href="/com-es-juga" onClick={route(onHelp)}>{copy.howRules}<span aria-hidden="true">→</span></a></div>
+  </div></section>
 }
 
 /** A whole-row link inside the "Juga amb amics" group. The hidden group name prefixes the visible label, so a links list

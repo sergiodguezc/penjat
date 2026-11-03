@@ -124,8 +124,6 @@ button { cursor: pointer; }
 .page-lede { max-width: 46ch; margin: var(--space-3) 0 0; color: var(--text-muted); font-size: var(--text-lede); line-height: var(--leading-body); }
 .page-head--compact { margin-bottom: var(--space-4); }
 .page-head--compact h1 { font-size: var(--text-page-title); line-height: var(--leading-tight); }
-.section-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3) var(--space-6); margin-bottom: var(--space-8); }
-.section-head h2 { margin: 0; color: var(--ink); font: 800 var(--text-section)/1.05 var(--font-display); letter-spacing: -.03em; }
 
 .exit-confirmation-dialog { width: min(100%, 27rem); padding: var(--space-6); border: 2px solid var(--ink); border-radius: var(--radius-dialog); background: var(--surface); box-shadow: var(--shadow-ink), var(--shadow-dialog); }
 .exit-confirmation-dialog h2 { margin: 0 0 var(--space-2); color: var(--ink); font: 800 var(--text-page-title)/var(--leading-tight) var(--font-display); }
@@ -216,7 +214,7 @@ button { cursor: pointer; }
 /* The homepage's one high-contrast moment: Catalan words on a full-bleed ink band between the hero and the modes.
    Identical copies drift left by one copy per cycle (seamless, linear, ~6px/s, set in HomePage); only the words move. */
 .home-page { overflow-x: clip; }
-.home-band { position: relative; display: block; width: 100vw; margin: 6rem calc(50% - 50vw) calc(4.5rem + 1.25rem); padding-block: var(--space-4); overflow: hidden; border: 0; border-radius: 0; color: var(--paper); background: var(--ink); text-align: left; }
+.home-band { --band-bg: var(--ink); position: relative; display: block; width: 100vw; margin: 6rem calc(50% - 50vw) 0; padding-block: var(--space-4); overflow: hidden; border: 0; border-radius: 0; color: var(--paper); background: var(--band-bg); text-align: left; }
 .home-band-track { display: flex; width: max-content; margin: 0; white-space: nowrap; font: italic 600 clamp(1.25rem, .95rem + 1.1vw, 1.875rem)/1.25 var(--font-display); font-synthesis: style; letter-spacing: -.01em; }
 .home-band-copy { flex: none; display: flex; width: var(--band-shift, auto); }
 /* Every word carries its own star, so each copy has the same width and copies join without a seam. */
@@ -224,39 +222,68 @@ button { cursor: pointer; }
 .home-band.is-moving .home-band-track { animation: band-drift var(--band-duration) linear infinite; will-change: transform; }
 .home-band.is-paused .home-band-track { animation-play-state: paused; }
 @keyframes band-drift { to { transform: translateX(calc(-1 * var(--band-shift))); } }
-/* The band is its own pause control: no visible button; a pointer cursor, a tooltip and an inset saffron focus ring. */
+/* The band is its own pause control: a round pause/play mark at its end (words fade out beneath it), a pointer
+   cursor, a tooltip and an inset saffron focus ring. With reduced motion the band is static and has no mark. */
 button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
 :root button.home-band:focus-visible { outline: 3px solid var(--safra); outline-offset: -12px; box-shadow: none; }
-/* Mode cards: one per real mode. Colour carries the mode; supporting text stays restrained. */
-.mode-cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
-/* Rows follow the hero groups: online + Passa el mòbil, then daily + learning. */
-.mode-card { grid-column: span 2; min-width: 0; }
-.mode-cards .mode-card--mar, .mode-cards .mode-card--local { grid-column: span 3; }
-.mode-cards .mode-card--oliva { grid-column: span 4; }
-.mode-card > a { position: relative; height: 100%; min-height: 17rem; display: flex; flex-direction: column; justify-content: flex-end; gap: var(--space-6); padding: var(--space-10); overflow: hidden; border: 2px solid var(--ink); border-radius: var(--radius-card); color: var(--ink); background: var(--surface); box-shadow: var(--shadow-ink); text-decoration: none; transition: transform 160ms ease, box-shadow 160ms ease; }
-.mode-card > a:hover { transform: translate(-1px, -3px); box-shadow: var(--shadow-ink-hover); }
-.mode-card > a:active { transform: translate(2px, 2px); box-shadow: var(--shadow-ink-pressed); }
-.mode-card--mar > a { color: var(--surface); background: var(--mar); }
-.mode-card--safra > a { background: var(--safra); }
-.mode-card--oliva > a { background: color-mix(in oklch, var(--oliva) 55%, var(--surface)); }
-/* Leave room for the illustration beside the text. */
-.mode-card--oliva .mode-card-text { max-width: min(26rem, 64%); }
-.mode-card-text { position: relative; z-index: 1; max-width: 26rem; }
-.mode-card h3 { margin: 0; font: 800 clamp(1.75rem, 1.25rem + 1.3vw, 2.625rem)/1.02 var(--font-display); letter-spacing: -.025em; }
-.mode-card-body { max-width: 36ch; margin: var(--space-3) 0 0; font-size: var(--text-body); line-height: var(--leading-body); }
-.mode-card-action { display: inline-block; margin-top: var(--space-5); font-weight: var(--weight-bold); text-decoration: underline transparent 2px; text-underline-offset: 4px; }
-.mode-card > a:hover .mode-card-action { text-decoration-color: currentColor; }
-.mode-card > a:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 4px; }
-.mode-card-art { position: absolute; right: var(--space-6); bottom: var(--space-6); pointer-events: none; }
-.mode-art-code { display: flex; gap: 6px; }
-.mode-art-code span { display: grid; place-items: center; width: 2.5rem; height: 3rem; border: 2px solid var(--ink); border-radius: var(--radius-control); color: var(--ink); background: var(--surface); box-shadow: var(--shadow-ink-sm); font: 700 1.5rem/1 var(--font-display); }
-.mode-art-code span:nth-child(odd) { transform: rotate(-3deg); }
-.mode-art-grid { display: grid; grid-template-columns: repeat(5, 1.25rem); gap: 5px; }
-.mode-art-grid i { width: 1.25rem; height: 1.25rem; border: 2px solid var(--ink); border-radius: 4px; background: var(--mar); }
-.mode-art-grid i.miss { background: var(--magrana); }
-.mode-art-hint { display: grid; gap: 2px; padding: var(--space-3) var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-inner); background: var(--surface); box-shadow: var(--shadow-ink-sm); transform: rotate(3deg); }
-.mode-art-hint span { color: var(--text-muted); font-size: var(--text-meta); }
-.mode-art-hint strong { font: 700 1.5rem/1.1 var(--font-display); }
+.home-band-control { position: absolute; inset: 0 0 0 auto; display: grid; place-items: center end; width: 7rem; padding-right: calc(env(safe-area-inset-right, 0px) + var(--space-4)); background: linear-gradient(to right, transparent, var(--band-bg) 55%); pointer-events: none; }
+.home-band-control > span { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border: 1.5px solid color-mix(in oklch, currentColor 60%, transparent); border-radius: 50%; background: var(--band-bg); transition: border-color 140ms ease; }
+.home-band-control svg { width: .875rem; height: .875rem; fill: currentColor; }
+button.home-band:hover .home-band-control > span { border-color: var(--safra); }
+
+/* "Com es juga": a full-bleed paper-deep panel opened by the band. Four outlined steps (no shadows: they explain, they
+   are not buttons) tell one word's story with the real drawing; numbered saffron stickers echo the hero's tag. */
+/* Full-bleed by cancelling the page gutter (not 100vw, which counts a desktop scrollbar and shifts the content). */
+.home-how { --how-bg: var(--paper-deep); margin-inline: calc(-1 * (env(safe-area-inset-left, 0px) + var(--space-6))) calc(-1 * (env(safe-area-inset-right, 0px) + var(--space-6))); background: var(--how-bg); }
+.home-page:has(.home-how) + .site-footer { margin-top: 0; }
+.home-how-inner { width: min(100%, calc(var(--page-max) + 2 * var(--space-6))); margin: 0 auto; padding: var(--space-16) calc(env(safe-area-inset-right, 0px) + var(--space-6)) var(--space-16) calc(env(safe-area-inset-left, 0px) + var(--space-6)); }
+.home-how-head { display: grid; gap: var(--space-3); max-width: 40rem; margin-bottom: var(--space-10); }
+.home-how-head h2 { margin: 0; color: var(--ink); font: 800 var(--text-section)/1.05 var(--font-display); letter-spacing: -.03em; }
+.home-how-head p { max-width: 34ch; margin: 0; color: var(--text-muted); font-size: var(--text-lede); line-height: var(--leading-body); }
+.how-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-5); margin: 0; padding: 0; list-style: none; }
+.how-step { position: relative; display: grid; grid-template-rows: auto 1fr; min-width: 0; border: 2px solid var(--ink); border-radius: var(--radius-card); background: var(--surface); }
+.how-art { display: grid; justify-items: center; gap: var(--space-2); padding: var(--space-6) var(--space-4) var(--space-4); border-bottom: 2px dashed var(--border-dashed); border-radius: calc(var(--radius-card) - 2px) calc(var(--radius-card) - 2px) 0 0; }
+.how-art .hangman { display: block; width: 7.5rem; height: auto; }
+/* The solved step glows like a won result, so it never reads as the six-error step (whose fire is out too). */
+.how-step--solved .how-art { background: color-mix(in oklch, var(--safra) 26%, var(--surface)); }
+.how-number, .how-sticker { position: absolute; top: -.9rem; z-index: 1; border: 2px solid var(--ink); color: oklch(0.2 0.015 60); background: var(--safra); }
+.how-number { left: var(--space-4); display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; font: 800 1rem/1 var(--font-display); transform: rotate(-6deg); }
+.how-sticker { right: var(--space-4); padding: .15rem .6rem; border-radius: var(--radius-pill); color: var(--ink); background: var(--surface); box-shadow: var(--shadow-ink-sm); font-size: var(--text-label); font-weight: var(--weight-bold); line-height: 1.35; white-space: nowrap; transform: rotate(2deg); }
+.how-sticker--solved { border-radius: var(--radius-control); color: oklch(0.2 0.015 60); background: var(--safra); transform: rotate(4deg); }
+.how-word { display: flex; gap: .3rem; }
+.how-word > span { width: 1.15rem; height: 1.6rem; border-bottom: 2.5px solid var(--ink); color: var(--ink); font: 700 1.1rem/1.6rem var(--font-display); text-align: center; }
+.how-misses { min-height: 1.15rem; color: var(--text-muted); font-size: var(--text-label); font-weight: var(--weight-semibold); letter-spacing: .12em; text-decoration: line-through var(--magrana); }
+.how-text { padding: var(--space-4) var(--space-5) var(--space-5); }
+.how-text h3 { margin: 0 0 var(--space-2); color: var(--ink); font: 700 var(--text-panel-title)/1.15 var(--font-display); letter-spacing: -.015em; }
+.how-text p { margin: 0; color: var(--text-muted); }
+.how-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-3) var(--space-8); margin-top: var(--space-8); padding-top: var(--space-5); border-top: 1.5px solid var(--ink); }
+.how-foot p { max-width: 46rem; margin: 0; color: var(--ink); }
+.how-foot .howto-link { margin-top: 0; }
+@media (max-width: 62.4375em) {
+  .how-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-how-inner { padding-block: var(--space-12); }
+}
+/* Phones: one column; each step puts its drawing beside the text. */
+@media (max-width: 37.4375em) {
+  .home-how { margin-inline: calc(-1 * (env(safe-area-inset-left, 0px) + var(--space-4))) calc(-1 * (env(safe-area-inset-right, 0px) + var(--space-4))); }
+  .home-how-inner { padding: var(--space-10) calc(env(safe-area-inset-right, 0px) + var(--space-4)) var(--space-10) calc(env(safe-area-inset-left, 0px) + var(--space-4)); }
+  .home-how-head { margin-bottom: var(--space-8); }
+  .how-steps { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
+  .how-step { grid-template-columns: 7.25rem minmax(0, 1fr); grid-template-rows: none; }
+  .how-art { align-content: start; padding: var(--space-5) var(--space-2) var(--space-3); border-right: 2px dashed var(--border-dashed); border-bottom: 0; border-radius: calc(var(--radius-card) - 2px) 0 0 calc(var(--radius-card) - 2px); }
+  .how-art .hangman { width: 5.5rem; }
+  .how-word { gap: .18rem; }
+  .how-word > span { width: .8rem; height: 1.25rem; border-bottom-width: 2px; font-size: .85rem; line-height: 1.25rem; }
+  .how-misses { font-size: .6875rem; letter-spacing: .06em; }
+  .how-text { align-self: center; padding: var(--space-4); }
+  .how-text h3 { font-size: 1.1875rem; }
+  .how-foot { margin-top: var(--space-6); }
+}
+/* Under 320 CSS px (or 200% text on phones) the drawing stacks above the text. */
+@media (max-width: 19.9375em) {
+  .how-step { grid-template-columns: minmax(0, 1fr); }
+  .how-art { border-right: 0; border-bottom: 2px dashed var(--border-dashed); border-radius: calc(var(--radius-card) - 2px) calc(var(--radius-card) - 2px) 0 0; }
+}
 .home-card, .lobby-card, .disconnect-page section, .howto-card { width: min(100%, 31rem); padding: clamp(20px, 6vw, 48px); border: 2px solid var(--ink); border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--shadow-ink); }
 .home-intro { margin-bottom: var(--space-8); text-align: center; }
 .home-intro--compact { margin-bottom: var(--space-6); }
@@ -870,11 +897,10 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
   .multiplayer-game { min-height: 570px; }
   .room-chat, .match-layout > .room-chat { width: 100%; height: 400px; }
 }
-/* Homepage tablets: the copy sits beside a compact board card and both groups take the full width below; mode cards
-   pair up. The copy column dissolves into the hero grid (as on phones), so DOM and reading order are unchanged. */
+/* Homepage tablets: the copy sits beside a compact board card and both groups take the full width below. The copy column dissolves into the hero grid (as on phones), so DOM and reading order are unchanged. */
 @media (max-width: 62.4375em) {
   .home-shell { gap: var(--space-12); }
-  .home-band { margin-block: 4.5rem 5rem; }
+  .home-band { margin-block: 4.5rem 0; }
   .home-hero { grid-template-columns: minmax(0, 1fr) 15rem; grid-template-areas: "eyebrow art" "title art" "lede art" "modes modes"; align-items: start; gap: var(--space-4) var(--space-8); }
   .home-copy { display: contents; }
   .home-copy > .page-eyebrow { grid-area: eyebrow; justify-self: start; margin: 0; }
@@ -885,26 +911,16 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
   .preview-drawing { width: min(100%, 9.5rem); }
   .preview-word { gap: var(--space-2); }
   .preview-letter { width: 1.5rem; min-width: 1.5rem; min-height: 2rem; font-size: 1.3rem; }
-  .mode-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
-  .mode-card, .mode-cards :is(.mode-card--mar, .mode-card--local, .mode-card--oliva) { grid-column: span 1; }
   .home-modes { max-width: none; }
-  .mode-card > a { min-height: 0; padding: var(--space-6); }
-  .mode-card-art { display: none; }
-  /* Without the illustration the text takes the whole card. */
-  .mode-card--oliva .mode-card-text { max-width: 36rem; }
   .home-card--join form { grid-template: "name" auto "next" auto "create" auto "divider" auto "join" auto "error" auto / minmax(0, 1fr); gap: var(--space-5); }
 }
-/* Phones: a compact hero (actions first, small preview), single-column cards without illustrations. */
+/* Phones: a compact hero (actions first, small preview). */
 @media (max-width: 37.4375em) {
   .home-page, .home-page--multiplayer { padding: var(--space-6) calc(env(safe-area-inset-right, 0px) + var(--space-4)) 0 calc(env(safe-area-inset-left, 0px) + var(--space-4)); }
   .home-shell { gap: var(--space-10); }
-  .home-band { margin-block: var(--space-16) 3.75rem; padding-block: var(--space-3); }
+  .home-band { margin-block: var(--space-16) 0; padding-block: var(--space-3); }
   .home-hero { gap: var(--space-8); }
   .home-copy h1 { max-width: 17ch; line-height: 1.02; }
-  .section-head { margin-bottom: var(--space-5); }
-  .mode-cards { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
-  .mode-card > a { min-height: 0; padding: var(--space-6) var(--space-5); }
-  .mode-card-action { margin-top: var(--space-2); }
   .ios-install-card { width: 100%; border-radius: 12px; }
   .ios-install-toggle { padding-inline: 12px; }
 }
@@ -1150,7 +1166,7 @@ body { background-image: radial-gradient(oklch(0.2 0.015 60 / 5%) .7px, transpar
 .keyboard button.incorrect { color: var(--error); background: var(--error-surface); border-color: var(--error); text-decoration: line-through; }
 @media (prefers-reduced-motion: reduce) {
   .primary-action:not(:disabled):hover, .secondary-action:not(:disabled):hover, .primary-action:not(:disabled):active, .secondary-action:not(:disabled):active,
-  .keyboard button:not(:disabled):hover, .mode-card > a:hover, .mode-card > a:active, .daily-entry:active,
+  .keyboard button:not(:disabled):hover, .daily-entry:active,
   :is(.friends-option, .solo-options a):hover :is(.daily-arrow, .friends-option-arrow) { transform: none; }
   .site-brand:hover .brand-badge { transform: none; }
 }
@@ -1214,9 +1230,6 @@ body { background-image: radial-gradient(oklch(0.2 0.015 60 / 5%) .7px, transpar
 
 /* Passa el mòbil: one phone passed around the table. Gates fill the screen with one action; private screens never
    share it with anything else. */
-.mode-card--local > a { background: var(--mar-surface); }
-.mode-card--local .mode-card-text { max-width: min(30rem, 70%); }
-.mode-art-phone .mode-icon { display: block; width: clamp(4rem, 3rem + 3vw, 6rem); height: auto; color: var(--ink); }
 
 .local-page { min-height: calc(100dvh - var(--header-height)); padding: var(--space-5) calc(env(safe-area-inset-right, 0px) + var(--space-4)) var(--space-10) calc(env(safe-area-inset-left, 0px) + var(--space-4)); }
 .local-setup-page, .local-stage, .local-page .local-header, .local-save-warning { width: min(100%, 46rem); margin-inline: auto; }

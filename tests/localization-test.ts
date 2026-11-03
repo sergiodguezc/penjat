@@ -73,22 +73,52 @@ assert.doesNotMatch(howToEs, /Socket\.IO|RoundResult|servidor|cliente/)
 const F1_KEYS = ['lede', 'modes', 'multiplayer', 'learning']
 const GROUP_KEYS = ['friendsMeta', 'online', 'onlineCaption', 'localCaption', 'solo', 'learningCaption', 'dailyFresh', 'dailyPlayed']
 const BAND_KEYS = ['bandPause', 'bandPlay']
-const LOCAL_KEYS = ['local', 'localCard', 'localCardAction']
+const LOCAL_KEYS = ['local']
+const HOW_KEYS = ['howTitle', 'howTitleAccent', 'howIntro', 'howSteps', 'howForgive', 'howSolved', 'howNote', 'howRules']
 // Approved homepage strings, pinned literally.
 assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => F1_KEYS.includes(key)))])), {
   ca: { lede: 'Endevina la paraula abans no et pengin. Amb amics o pel teu compte, i sense registre.', modes: 'Modes de joc', multiplayer: 'Juga amb amics', learning: 'Aprèn vocabulari' },
   es: { lede: 'Adivina la palabra antes de que te ahorquen. Con amigos o por tu cuenta, y sin registro.', modes: 'Modos de juego', multiplayer: 'Juega con amigos', learning: 'Aprende vocabulario' },
 })
-// Phase 3B homepage additions (eyebrow, mode cards and preview), pinned literally.
-assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => !F1_KEYS.includes(key) && !GROUP_KEYS.includes(key) && !BAND_KEYS.includes(key) && !LOCAL_KEYS.includes(key)))])), {
-  ca: { eyebrow: 'El joc del penjat', cardsTitle: 'Què és cada mode', multiplayerCard: 'Sales privades de 2 a 10 persones. A cada torn, algú tria la paraula i la resta l’endevina.', multiplayerCardAction: 'Crea una sala', dailyCard: 'Una paraula nova cada dia, la mateixa per a tothom. Comparteix el resultat sense revelar-la.', dailyCardAction: 'Juga la d’avui', learningCard: 'Paraules catalanes per temes, amb una pista en castellà. En acabar, veus el significat, un exemple i una il·lustració.', learningCardAction: 'Comença a practicar', previewTag: '6 lletres' },
-  es: { eyebrow: 'El juego del ahorcado', cardsTitle: 'Qué es cada modo', multiplayerCard: 'Salas privadas de 2 a 10 personas. En cada turno, alguien elige la palabra y el resto la adivina.', multiplayerCardAction: 'Crea una sala', dailyCard: 'Una palabra nueva cada día, la misma para todos. Comparte el resultado sin revelarla.', dailyCardAction: 'Juega la de hoy', learningCard: 'Palabras catalanas por temas, con una pista en español. Al terminar, ves el significado, un ejemplo y una ilustración.', learningCardAction: 'Empieza a practicar', previewTag: '6 letras' },
+// Homepage eyebrow and preview, pinned literally.
+assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => !F1_KEYS.includes(key) && !GROUP_KEYS.includes(key) && !BAND_KEYS.includes(key) && !LOCAL_KEYS.includes(key) && !HOW_KEYS.includes(key)))])), {
+  ca: { eyebrow: 'El joc del penjat', previewTag: '6 lletres' },
+  es: { eyebrow: 'El juego del ahorcado', previewTag: '6 letras' },
 })
 // "Passa el mòbil" entry, pinned literally; the offline claim is backed by the service worker (test:offline).
 assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => LOCAL_KEYS.includes(key)))])), {
-  ca: { local: 'Passa el mòbil', localCard: 'Jugueu junts amb un sol mòbil, fins i tot sense internet.', localCardAction: 'Prepara la partida' },
-  es: { local: 'Pasa el móvil', localCard: 'Jugad juntos con un solo móvil, incluso sin internet.', localCardAction: 'Prepara la partida' },
+  ca: { local: 'Passa el mòbil' },
+  es: { local: 'Pasa el móvil' },
 })
+// "Com es juga": the approved four-step explanation, pinned literally. The rules it states are the game's: the setter
+// does not guess, each guesser has a private board, the sixth error asks the setter for forgiveness (granted: play on
+// at six, one more miss eliminates), solved players rank by errors then time, and only multiplayer has forgiveness.
+assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => HOW_KEYS.includes(key)))])), {
+  ca: {
+    howTitle: 'Com es', howTitleAccent: 'juga', howIntro: 'Una paraula secreta, sis errors i, de vegades, una segona oportunitat.',
+    howSteps: [
+      { title: 'Algú tria la paraula', body: 'L’escriu en secret i, aquell torn, no endevina.' },
+      { title: 'Cadascú, el seu tauler', body: 'Proveu lletres pel vostre compte. Cada error dibuixa una part del penjat.', spooky: 'Proveu lletres pel vostre compte. Cada error apaga una flama del braser.' },
+      { title: 'Sis errors? Potser et perdonen', body: 'Qui ha triat la paraula decideix si et perdona la vida. Si ho fa, continues, però un error més i quedes fora.' },
+      { title: 'Qui l’endevina, puntua', body: 'Com menys errors, més punts; si empateu, va davant qui ha anat més ràpid. Després, tria la paraula el següent.' },
+    ],
+    howForgive: 'Li perdones la vida?', howSolved: 'Encertada!',
+    howNote: 'El perdó només existeix quan jugueu amb amics. A la Paraula del dia i a Aprèn vocabulari, sis errors i prou.', howRules: 'Totes les regles',
+  },
+  es: {
+    howTitle: 'Cómo se', howTitleAccent: 'juega', howIntro: 'Una palabra secreta, seis errores y, a veces, una segunda oportunidad.',
+    howSteps: [
+      { title: 'Alguien elige la palabra', body: 'La escribe en secreto y, ese turno, no adivina.' },
+      { title: 'Cada uno, su tablero', body: 'Probad letras por vuestra cuenta. Cada error dibuja una parte del ahorcado.', spooky: 'Probad letras por vuestra cuenta. Cada error apaga una llama del brasero.' },
+      { title: '¿Seis errores? Quizá te perdonen', body: 'Quien eligió la palabra decide si te perdona la vida. Si lo hace, sigues, pero un error más y quedas fuera.' },
+      { title: 'Quien la adivina, puntúa', body: 'Cuantos menos errores, más puntos; si empatáis, va delante quien ha ido más rápido. Después, elige la palabra el siguiente.' },
+    ],
+    howForgive: '¿Le perdonas la vida?', howSolved: '¡Acertada!',
+    howNote: 'El perdón solo existe cuando jugáis con amigos. En la Palabra del día y en Aprende vocabulario, seis errores y se acabó.', howRules: 'Todas las reglas',
+  },
+})
+// No fixed score: the solved step says it was solved, not how many points six errors earn.
+for (const copy of Object.values(homeTranslations)) assert.doesNotMatch(JSON.stringify(copy), /\+\d/)
 // Word band pause/resume control (the band's words drift slowly), pinned literally.
 assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => BAND_KEYS.includes(key)))])), {
   ca: { bandPause: 'Atura el moviment de les paraules', bandPlay: 'Reprèn el moviment de les paraules' },
@@ -140,7 +170,7 @@ try {
       }
       assert.equal(nav.includes(`<span class="sr-only"> · ${copy.dailyPlayed}</span>`), state !== 'new', 'played mark only after playing')
       // State-dependent labels: the daily tag after playing, "Per a tothom" before, the band's resume label while paused.
-      for (const [key, text] of Object.entries(copy)) if (key !== 'dailyPlayed' && key !== 'bandPlay' && (key !== 'dailyFresh' || state === 'new')) assert.ok(html.includes(text), text)
+      for (const [key, text] of Object.entries(copy)) if (typeof text === 'string' && key !== 'dailyPlayed' && key !== 'bandPlay' && (key !== 'dailyFresh' || state === 'new')) assert.ok(html.includes(text), text)
       for (const [, id] of nav.matchAll(/aria-describedby="([^"]+)"/g)) assert.ok(html.includes(`id="${id}"`))
       // The title keeps its own line; the number leads the status caption (no "Paraula del / dia #80" break).
       assert.ok(nav.includes(`<span class="daily-head"><span class="daily-title">${d.title}</span>`))
@@ -151,11 +181,32 @@ try {
       assert.ok(!html.includes(challenge.entry.definitionCa))
       assert.ok(!nav.includes('<button'))
       assert.ok(!html.includes('home-quick'), 'no second, phone-only copy of the modes')
-      // Mode cards follow the hero groups; Passa el mòbil has one card.
-      assert.deepEqual([...html.matchAll(/<li class="mode-card mode-card--([a-z]+)"><a href="([^"]+)"/g)].map((match) => [match[1], match[2]]), [['mar', '/multijugador'], ['local', '/passa-el-mobil'], ['safra', '/paraula-del-dia'], ['oliva', '/aprendre']])
-      // "Com es juga" is a quiet link beside the cards' heading, not a fifth card.
-      assert.ok(html.includes(`<a class="howto-link" href="/com-es-juga">${language === 'ca' ? 'Com es juga' : 'Cómo se juega'}<span aria-hidden="true">→</span></a>`))
-      assert.ok(html.includes(`<a href="/passa-el-mobil"><div class="mode-card-text"><h3>${copy.local}</h3><p class="mode-card-body">${copy.localCard}</p>`))
+      // The mode cards are gone: the hero is the only list of modes, and "Com es juga" explains a round instead.
+      assert.ok(!html.includes('mode-card'))
+      assert.ok(html.indexOf('class="home-band') < html.indexOf('<section class="home-how"'), 'the band opens the explanation')
+      const how = html.match(/<section class="home-how".*?<\/section>/)![0]
+      assert.ok(how.includes(`<h2 id="home-how-title">${copy.howTitle} <em>${copy.howTitleAccent}</em></h2>`))
+      const steps = [...how.matchAll(/<li class="how-step[^"]*">(.*?)<\/li>/g)].map((match) => match[1])
+      assert.equal(steps.length, 4)
+      // Decorative art (drawing, word slots, stickers); each step's title and text carry the rule.
+      steps.forEach((step, index) => {
+        assert.ok(step.startsWith('<div class="how-art" aria-hidden="true">'))
+        assert.ok(step.includes(`<h3>${copy.howSteps[index].title}</h3>`))
+      })
+      // One word's story: CARGOL, with misses E S, then I T U N (six), forgiveness, then solved with G and L.
+      const words = steps.map((step) => [...step.match(/<span class="how-word" lang="ca">(.*?)<\/span><span class="how-misses">([^<]*)</)!.slice(1)]
+        .map((part, index) => index === 0 ? [...part.matchAll(/<span>([^<]*)<\/span>/g)].map((slot) => slot[1] || '_').join('') : part.replace(/ /g, '')))
+      assert.deepEqual(words, [['______', ''], ['C___O_', 'ES'], ['CAR_O_', 'ESITUN'], ['CARGOL', 'ESITUN']])
+      for (const [index, [word, misses]] of words.entries()) {
+        const errors = (step: string) => (step.match(/data-part="/g) ?? []).length
+        assert.ok([...word].every((letter) => letter === '_' || 'CARGOL'.includes(letter)) && [...misses].every((letter) => !'CARGOL'.includes(letter)))
+        // The real drawing shows exactly the misses (rescued pose in the solved step).
+        assert.equal(errors(steps[index]), index === 3 ? 6 : misses.length)
+      }
+      assert.ok(steps[2].includes(`<span class="how-sticker">${copy.howForgive}</span>`))
+      assert.ok(steps[3].includes(`<span class="how-sticker how-sticker--solved">${copy.howSolved}</span>`) && !steps[3].includes('class="gallows"'))
+      assert.ok(steps[1].includes(`<span class="home-season-default">${copy.howSteps[1].body}</span><span class="spooky-only">${copy.howSteps[1].spooky}</span>`))
+      assert.ok(how.includes(`<a class="howto-link" href="/com-es-juga">${copy.howRules}<span aria-hidden="true">→</span></a>`))
     }
     assert.equal(d.wonWith(1), language === 'ca' ? 'Encertada amb 1 error' : 'Acertada con 1 error')
     assert.equal(d.wonWith(2), language === 'ca' ? 'Encertada amb 2 errors' : 'Acertada con 2 errores')
