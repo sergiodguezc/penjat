@@ -298,7 +298,7 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M5 16q-2-7 7-12q9 5 7 12q-7 8-14 0Z" /><path d="m8 10 8 7m-7 0 7-7" /></svg>
             {seasonalTranslations[interfaceLanguage].spooky}
           </span></p>
-          <h1>{isCatalan ? <>Juga al penjat online <em>en català.</em></> : <>Juega a Penjat <em>online.</em></>}</h1>
+          <h1>{isCatalan ? <>Juga al penjat online <em>en català.</em></> : <>Juega al ahorcado <em>en catalán.</em></>}</h1>
           <p className="home-lede"><span className="home-season-default">{homeCopy.lede}</span><span className="spooky-only">{seasonalTranslations[interfaceLanguage].lede}</span></p>
           {/* One hero navigation at every width: the two ways to play with friends as one group, then the solo modes. */}
           <nav className="home-modes" aria-label={homeCopy.modes}>
@@ -315,15 +315,15 @@ export function HomePage({ interfaceLanguage, gameLanguage, notice, invitedRoomC
                 <li><a className="daily-entry" href={DAILY_CHALLENGE_PUBLIC_PATH} onClick={route(onDaily)}>
                   <ModeIcon mode="daily" />
                   <span>
-                    {/* Real spaces between the parts: phones lay them out inline, so the name reads "Paraula del dia #79 · Jugada". */}
-                    <span className="daily-head"><span className="daily-title">{d.title}</span>{' '}<span className="daily-number">#{daily.number}</span>
-                      {daily.status !== 'new' && <>{' '}<span className="daily-played"><span aria-hidden="true">✓</span><span className="sr-only"> · {homeCopy.dailyPlayed}</span></span></>}</span>
-                    <span className="daily-caption">{daily.status === 'new' ? d.sameForEveryone : <>{daily.status === 'won' ? d.wonWith(daily.mistakes) : d.lost}<span className="daily-sep" aria-hidden="true"> · </span><span className="daily-tomorrow">{d.comeBackTomorrow}</span></>}</span>
+                    {/* The title keeps its own line; the number leads the caption, so the name reads "Paraula del dia #80 · Per a tothom". */}
+                    <span className="daily-head"><span className="daily-title">{d.title}</span>
+                      {daily.status !== 'new' && <>{' '}<span className="daily-played"><span aria-hidden="true">✓</span><span className="sr-only"> · {homeCopy.dailyPlayed}</span></span></>}</span>{' '}
+                    <span className="daily-caption solo-caption"><span className="daily-number">#{daily.number}</span><span className="daily-sep" aria-hidden="true"> · </span>{daily.status === 'new' ? homeCopy.dailyFresh : <>{daily.status === 'won' ? d.wonWith(daily.mistakes) : d.lost}<span className="daily-sep" aria-hidden="true"> · </span><span className="daily-tomorrow">{d.comeBackTomorrow}</span></>}</span>
                   </span>
                   <span className="daily-arrow" aria-hidden="true">→</span>
                 </a></li>
                 <li><a className="solo-option" href="/aprendre" onClick={route(onLearn)}>
-                  <ModeIcon mode="learning" /><span className="solo-option-label">{homeCopy.learning}</span><span className="daily-arrow" aria-hidden="true">→</span>
+                  <ModeIcon mode="learning" /><span className="solo-option-text"><span className="solo-option-label">{homeCopy.learning}</span>{' '}<span className="solo-caption">{homeCopy.learningCaption}</span></span><span className="daily-arrow" aria-hidden="true">→</span>
                 </a></li>
               </ul>
             </section>

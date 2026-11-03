@@ -83,6 +83,10 @@
 .seasonal-preview-grid figure { margin: 0; padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); }
 .seasonal-preview-grid svg { display: block; width: 100%; max-width: 15rem; margin: auto; }
 .seasonal-preview-grid figcaption { display: grid; gap: var(--space-1); text-align: center; }
+/* Tablet board card (15rem): the leaf moves to the empty space left of the castanyera, clear of the moon. */
+@media (min-width: 37.5em) and (max-width: 62.4375em) {
+  :root[data-season="spooky"] .autumn-leaf { top: 42%; right: auto; left: var(--space-2); width: 1.75rem; transform: rotate(-14deg); }
+}
 @media (max-width: 37.4375em) {
   :root[data-season="spooky"] .autumn-leaf { display: none; }
   :root[data-season="spooky"] .home-preview { background: none; box-shadow: none; }

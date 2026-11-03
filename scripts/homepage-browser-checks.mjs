@@ -78,8 +78,9 @@ function checkPhoneHero(m, at) {
   assert.ok(near(m.friends.x, m.shell.x) && near(m.friends.width, m.shell.width), `Friends group spans the content width at ${at}`)
   assert.ok(m.local.y >= m.online.bottom - 1 && near(m.local.x, m.online.x), `Friends options stacked at ${at}`)
   assert.ok(m.online.height >= 56, `En línia height ${m.online.height}`)
-  if (width >= 320) assert.ok(near(m.daily.y, m.learn.y, .5) && m.learn.x > m.daily.x, `Solo links side by side at ${at}`)
-  assert.deepEqual([m.dailyCaption.shown, m.dailyPlayed === null || m.dailyPlayed.shown], [false, true], `Phone daily shows only the played mark at ${at}`)
+  // The solo links stack as full-width rows below the friends group, each with its caption (number or topic).
+  assert.ok(m.learn.y >= m.daily.bottom - 1 && near(m.learn.x, m.daily.x) && near(m.daily.width, m.shell.width), `Solo links stacked at ${at}`)
+  assert.deepEqual([m.dailyCaption.shown, m.dailyPlayed === null || !m.dailyPlayed.shown], [true, true], `Phone daily shows its status line at ${at}`)
   // Short phones give the eyebrow's row to the modes; taller phones keep it (and the Castanyada chip).
   assert.equal(m.eyebrow.shown, height >= 640, `Eyebrow at ${at}`)
   // Spacing comes first on the iPhone SE (375×553 visible): both friends options are in the first viewport and the solo
@@ -101,9 +102,10 @@ function checkWideHero(m, at) {
   assert.ok(m.drawing.y >= m.card.y + 16, 'Drawing remains inside the card padding')
   assert.ok(m.slots.bottom <= m.card.bottom - 16, 'Letter slots remain inside the card padding')
   if (width < 1000) {
-    // Stacked hero: the preview follows the groups, centred in the content column.
-    assert.ok(m.card.y > m.modes.bottom)
-    assert.ok(Math.abs((m.card.x + m.card.width / 2) - (m.shell.x + m.shell.width / 2)) <= 2, 'Preview centred')
+    // Tablet hero: a compact board beside the headline and lede; both groups span the content width below them.
+    assert.ok(m.card.x >= m.lede.right && m.card.right <= m.shell.right + 4 && m.card.bottom <= m.modes.y, `Preview beside the copy at ${at}`)
+    assert.ok(near(m.friends.width, m.shell.width), `Friends group spans the content width at ${at}`)
+    if (height >= 1024) assert.ok(m.links.every(link => link.bottom <= height), `All modes in the first tablet viewport at ${at}`)
   } else assert.ok(m.card.x > m.friends.right, `Preview beside the groups at ${at}`)
 }
 

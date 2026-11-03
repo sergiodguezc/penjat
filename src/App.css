@@ -193,14 +193,15 @@ button { cursor: pointer; }
 .solo-option .mode-icon { background: var(--oliva-surface); }
 .daily-entry:hover { background: var(--warning-surface); }
 .solo-option:hover { background: var(--oliva-surface); }
+.solo-option-text { display: grid; min-width: 0; }
 .solo-option-label { min-width: 0; font: 700 1.0625rem/1.15 var(--font-display); overflow-wrap: anywhere; }
-.daily-entry > span:not(.daily-arrow) { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-3); min-width: 0; }
+.daily-entry > span:not(.daily-arrow) { display: grid; min-width: 0; }
 .daily-head { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-2); }
 .daily-title { color: var(--ink); font: 700 1.0625rem/1.15 var(--font-display); }
-.daily-number { color: var(--ink); font-size: var(--text-meta); font-weight: var(--weight-bold); letter-spacing: .02em; font-variant-numeric: tabular-nums; }
-/* Phones show only a played mark; wider screens show the full status line instead. */
-.daily-played { display: none; font-size: var(--text-meta); font-weight: var(--weight-bold); }
-.daily-caption { display: block; margin-top: 0; color: var(--text-muted); font-size: var(--text-meta); line-height: 1.35; }
+.daily-number { color: var(--ink); font-weight: var(--weight-bold); letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+/* The status line says whether today's word is played, so the ✓ mark stays hidden at every width. */
+.daily-played { display: none; }
+.solo-caption { display: block; margin-top: 0; color: var(--text-muted); font-size: var(--text-meta); line-height: 1.35; }
 .daily-entry .daily-tomorrow { margin: 0; color: inherit; font: inherit; white-space: nowrap; }
 .daily-arrow, .friends-option-arrow { font: 700 1.25rem/1 var(--font-display); transition: transform 140ms ease; }
 :is(.friends-option, .solo-options a):hover :is(.daily-arrow, .friends-option-arrow) { transform: translateX(3px); }
@@ -869,13 +870,21 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
   .multiplayer-game { min-height: 570px; }
   .room-chat, .match-layout > .room-chat { width: 100%; height: 400px; }
 }
-/* Homepage tablets: the hero stacks with the preview below the actions; mode cards pair up. */
+/* Homepage tablets: the copy sits beside a compact board card and both groups take the full width below; mode cards
+   pair up. The copy column dissolves into the hero grid (as on phones), so DOM and reading order are unchanged. */
 @media (max-width: 62.4375em) {
   .home-shell { gap: var(--space-12); }
   .home-band { margin-block: 4.5rem 5rem; }
-  .home-hero { grid-template-columns: minmax(0, 1fr); gap: var(--space-10); }
-  .home-preview { justify-self: center; width: min(100%, 24rem); transform: rotate(1deg); }
-  .preview-drawing { width: min(100%, 11rem); }
+  .home-hero { grid-template-columns: minmax(0, 1fr) 15rem; grid-template-areas: "eyebrow art" "title art" "lede art" "modes modes"; align-items: start; gap: var(--space-4) var(--space-8); }
+  .home-copy { display: contents; }
+  .home-copy > .page-eyebrow { grid-area: eyebrow; justify-self: start; margin: 0; }
+  .home-copy h1 { grid-area: title; max-width: 12ch; }
+  .home-lede { grid-area: lede; margin: 0; }
+  .home-modes { grid-area: modes; margin-top: var(--space-4); }
+  .home-preview { grid-area: art; align-self: center; justify-self: end; width: 100%; padding: var(--space-6) var(--space-4) var(--space-5); transform: rotate(1deg); }
+  .preview-drawing { width: min(100%, 9.5rem); }
+  .preview-word { gap: var(--space-2); }
+  .preview-letter { width: 1.5rem; min-width: 1.5rem; min-height: 2rem; font-size: 1.3rem; }
   .mode-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
   .mode-card, .mode-cards :is(.mode-card--mar, .mode-card--local, .mode-card--oliva) { grid-column: span 1; }
   .home-modes { max-width: none; }
@@ -914,15 +923,11 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
   .home-modes { grid-area: modes; max-width: none; margin-top: var(--space-1); gap: var(--space-4); }
   .friends-options { grid-template-columns: minmax(0, 1fr); }
   .friends-options li + li { border-left: 0; border-top: 2px solid var(--ink); }
-  .daily-caption { display: none; }
-  .daily-played { display: inline; }
-  /* Half-width solo links: the row itself is the affordance, so the label gets the arrow's width. */
-  .solo-options a { grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-2); padding-inline: var(--space-2); }
-  .solo-options .daily-arrow { display: none; }
+  /* The solo links stack as full-width ruled rows (title, then the number or topic), like the friends options. */
+  .solo-options { grid-template-columns: minmax(0, 1fr); }
+  .solo-options li + li { border-left: 0; border-top: 1.5px solid var(--ink); }
+  .solo-options a { min-height: 3rem; padding: var(--space-1) var(--space-2); }
   .solo-options .mode-icon { width: 2rem; height: 2rem; padding: .4rem; }
-  /* Inline flow, so "Paraula del dia #79" wraps as text (two lines) rather than as three flex rows. */
-  .daily-head { display: block; }
-  .daily-head > :is(.daily-number, .daily-played) { white-space: nowrap; }
 }
 /* Short phones: the eyebrow chip gives its row to the modes (the illustration and palette still carry the season). */
 @media (max-width: 37.4375em) and (max-height: 39.9375em) {
@@ -931,14 +936,14 @@ button.home-band { padding-inline: 0; font: inherit; cursor: pointer; }
   .home-hero { grid-template-areas: "title title" "lede art" "modes modes"; }
 }
 /* Under 320 CSS px at the default size (or 200% text on phones): one column, so the lede gets the full width and the
-   character sits below it; the friends options drop their decorative icon so labels keep one or two lines. */
+   character sits below it; the friends and solo links drop their decorative icon so labels keep whole words. */
 @media (max-width: 19.9375em) {
   .home-hero { grid-template-columns: minmax(0, 1fr); grid-template-areas: "eyebrow" "title" "lede" "art" "modes"; }
   .home-preview { justify-self: center; width: min(100%, 7rem); }
   .friends-option { grid-template-columns: minmax(0, 1fr) auto; }
   .friends-option-icon { display: none; }
-  .solo-options { grid-template-columns: minmax(0, 1fr); }
-  .solo-options li + li { border-left: 0; border-top: 1.5px solid var(--ink); }
+  .solo-options a { grid-template-columns: minmax(0, 1fr) auto; }
+  .solo-options .mode-icon { display: none; }
 }
 @media (max-width: 41.25em) {
   .match-page { padding-bottom: 25px; }

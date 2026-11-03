@@ -123,13 +123,15 @@ try {
   assert.equal(await evaluate(home, "getComputedStyle(document.querySelector('.daily-entry .daily-tomorrow')).fontSize"), '14px')
   assert.equal(await evaluate(home, "getComputedStyle(document.querySelector('.daily-entry .daily-tomorrow')).color"), await evaluate(home, "getComputedStyle(document.querySelector('.daily-caption')).color"))
   assert.equal(await evaluate(home, `document.querySelector('.home-modes').textContent.replace('Paraula del dia', '').includes(${JSON.stringify(secretDaily)})`), false)
-  // Phone hero (320px here): the daily link marks a played day without revealing the word.
-  assert.equal(await evaluate(home, "getComputedStyle(document.querySelector('.daily-played')).display"), 'inline')
-  assert.match(await evaluate(home, "document.querySelector('.daily-entry .daily-head').textContent"), /^Paraula del dia #\d+ ✓ · Jugada$/)
+  // Phone hero (320px here): the status caption marks a played day (number first) without revealing the word; the ✓
+  // mark stays hidden at every width, its "Jugada" text only in the markup for the static semantics.
+  assert.equal(await evaluate(home, "getComputedStyle(document.querySelector('.daily-played')).display"), 'none')
+  assert.equal(await evaluate(home, "getComputedStyle(document.querySelector('.daily-caption')).display"), 'block')
+  assert.match(await evaluate(home, "document.querySelector('.daily-caption').textContent"), /^#\d+ · (Encertada|No ha pogut ser)/)
   for (const attempt of ['{', JSON.stringify({ challengeId:'2000-01-01', guesses:['A'], completed:true, won:true })]) {
     await evaluate(home, `localStorage.setItem('penjat-daily-challenge', ${JSON.stringify(attempt)}); window.dispatchEvent(new Event('focus'))`)
-    await waitFor(home, "document.querySelector('.daily-caption').textContent === 'La mateixa per a tothom'")
-    assert.match(await evaluate(home, "document.querySelector('.daily-entry .daily-head').textContent"), /^Paraula del dia #\d+$/)
+    await waitFor(home, "/^#\\d+ · Per a tothom$/.test(document.querySelector('.daily-caption').textContent)")
+    assert.equal(await evaluate(home, "document.querySelector('.daily-entry .daily-head').textContent"), 'Paraula del dia')
   }
   assert.equal(await evaluate(home, "document.querySelector('.friends-option--online').textContent"), 'Juga amb amics: En líniaCadascú amb el seu mòbil→')
   console.log('Homepage daily status passed: completed game return, corrupt/outdated storage refresh, stable primary action.')

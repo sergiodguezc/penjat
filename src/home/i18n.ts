@@ -1,6 +1,6 @@
 const ca = {
   eyebrow: 'El joc del penjat',
-  lede: 'Tria una paraula i repta els amics a endevinar-la. Sense registre.',
+  lede: 'Endevina la paraula abans no et pengin. Amb amics o pel teu compte, i sense registre.',
   modes: 'Modes de joc',
   multiplayer: 'Juga amb amics',
   friendsMeta: 'De 2 a 10 jugadors',
@@ -9,6 +9,8 @@ const ca = {
   localCaption: 'Un sol mòbil, sense internet',
   solo: 'Pel teu compte',
   learning: 'Aprèn vocabulari',
+  learningCaption: 'Per temes, amb pista',
+  dailyFresh: 'Per a tothom',
   dailyPlayed: 'Jugada',
   cardsTitle: 'Què és cada mode',
   multiplayerCard: 'Sales privades de 2 a 10 persones. A cada torn, algú tria la paraula i la resta l’endevina.',
@@ -27,7 +29,7 @@ const ca = {
 
 const es: typeof ca = {
   eyebrow: 'El juego del ahorcado',
-  lede: 'Elige una palabra y reta a tus amigos a adivinarla. Sin registro.',
+  lede: 'Adivina la palabra antes de que te ahorquen. Con amigos o por tu cuenta, y sin registro.',
   modes: 'Modos de juego',
   multiplayer: 'Juega con amigos',
   friendsMeta: 'De 2 a 10 jugadores',
@@ -36,6 +38,8 @@ const es: typeof ca = {
   localCaption: 'Un solo móvil, sin internet',
   solo: 'Por tu cuenta',
   learning: 'Aprende vocabulario',
+  learningCaption: 'Por temas, con pista',
+  dailyFresh: 'Para todos',
   dailyPlayed: 'Jugada',
   cardsTitle: 'Qué es cada modo',
   multiplayerCard: 'Salas privadas de 2 a 10 personas. En cada turno, alguien elige la palabra y el resto la adivina.',

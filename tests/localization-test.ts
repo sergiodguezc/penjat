@@ -71,13 +71,13 @@ assert.doesNotMatch(howToCa, /Socket\.IO|RoundResult|servidor|cliente/)
 assert.doesNotMatch(howToEs, /Socket\.IO|RoundResult|servidor|cliente/)
 
 const F1_KEYS = ['lede', 'modes', 'multiplayer', 'learning']
-const GROUP_KEYS = ['friendsMeta', 'online', 'onlineCaption', 'localCaption', 'solo', 'dailyPlayed']
+const GROUP_KEYS = ['friendsMeta', 'online', 'onlineCaption', 'localCaption', 'solo', 'learningCaption', 'dailyFresh', 'dailyPlayed']
 const BAND_KEYS = ['bandPause', 'bandPlay']
 const LOCAL_KEYS = ['local', 'localCard', 'localCardAction']
 // Approved homepage strings, pinned literally.
 assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => F1_KEYS.includes(key)))])), {
-  ca: { lede: 'Tria una paraula i repta els amics a endevinar-la. Sense registre.', modes: 'Modes de joc', multiplayer: 'Juga amb amics', learning: 'Aprèn vocabulari' },
-  es: { lede: 'Elige una palabra y reta a tus amigos a adivinarla. Sin registro.', modes: 'Modos de juego', multiplayer: 'Juega con amigos', learning: 'Aprende vocabulario' },
+  ca: { lede: 'Endevina la paraula abans no et pengin. Amb amics o pel teu compte, i sense registre.', modes: 'Modes de joc', multiplayer: 'Juga amb amics', learning: 'Aprèn vocabulari' },
+  es: { lede: 'Adivina la palabra antes de que te ahorquen. Con amigos o por tu cuenta, y sin registro.', modes: 'Modos de juego', multiplayer: 'Juega con amigos', learning: 'Aprende vocabulario' },
 })
 // Phase 3B homepage additions (eyebrow, mode cards and preview), pinned literally.
 assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => !F1_KEYS.includes(key) && !GROUP_KEYS.includes(key) && !BAND_KEYS.includes(key) && !LOCAL_KEYS.includes(key)))])), {
@@ -96,8 +96,8 @@ assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([langu
 })
 // Hero groups ("Juga amb amics": En línia / Passa el mòbil; "Pel teu compte": daily / learning), pinned literally.
 assert.deepEqual(Object.fromEntries(Object.entries(homeTranslations).map(([language, copy]) => [language, Object.fromEntries(Object.entries(copy).filter(([key]) => GROUP_KEYS.includes(key)))])), {
-  ca: { friendsMeta: 'De 2 a 10 jugadors', online: 'En línia', onlineCaption: 'Cadascú amb el seu mòbil', localCaption: 'Un sol mòbil, sense internet', solo: 'Pel teu compte', dailyPlayed: 'Jugada' },
-  es: { friendsMeta: 'De 2 a 10 jugadores', online: 'En línea', onlineCaption: 'Cada uno con su móvil', localCaption: 'Un solo móvil, sin internet', solo: 'Por tu cuenta', dailyPlayed: 'Jugada' },
+  ca: { friendsMeta: 'De 2 a 10 jugadors', online: 'En línia', onlineCaption: 'Cadascú amb el seu mòbil', localCaption: 'Un sol mòbil, sense internet', solo: 'Pel teu compte', learningCaption: 'Per temes, amb pista', dailyFresh: 'Per a tothom', dailyPlayed: 'Jugada' },
+  es: { friendsMeta: 'De 2 a 10 jugadores', online: 'En línea', onlineCaption: 'Cada uno con su móvil', localCaption: 'Un solo móvil, sin internet', solo: 'Por tu cuenta', learningCaption: 'Por temas, con pista', dailyFresh: 'Para todos', dailyPlayed: 'Jugada' },
 })
 for (const [language, title, fresh, won0, lost, tomorrow] of [
   ['ca', 'Paraula del dia', 'La mateixa per a tothom', 'Encertada sense errors', 'No ha pogut ser', 'torna demà'],
@@ -125,7 +125,7 @@ try {
       assert.equal((html.match(/<h1>/g) ?? []).length, 1)
       assert.ok(html.includes(seasonalTranslations[language].spooky), 'seasonal identity follows interface language')
       // Phase 3B styles one accent word inside the heading; its text (the SEO headline) is unchanged.
-      assert.equal(html.match(/<h1>(.*?)<\/h1>/)![1].replace(/<[^>]+>/g, ''), language === 'ca' ? 'Juga al penjat online en català.' : 'Juega a Penjat online.')
+      assert.equal(html.match(/<h1>(.*?)<\/h1>/)![1].replace(/<[^>]+>/g, ''), language === 'ca' ? 'Juga al penjat online en català.' : 'Juega al ahorcado en catalán.')
       assert.ok(html.includes(`<nav class="home-modes" aria-label="${copy.modes}">`))
       const nav = html.match(/<nav class="home-modes".*?<\/nav>/)![0]
       // One hero navigation at every width: "Juga amb amics" (online, then Passa el mòbil), then "Pel teu compte".
@@ -139,11 +139,13 @@ try {
         assert.ok(nav.includes(`<span class="friends-option-caption" id="home-${tone}-caption" aria-hidden="true">${caption}</span>`))
       }
       assert.equal(nav.includes(`<span class="sr-only"> · ${copy.dailyPlayed}</span>`), state !== 'new', 'played mark only after playing')
-      // State-dependent labels: the daily tag after playing, the band's resume label while paused.
-      for (const [key, text] of Object.entries(copy)) if (key !== 'dailyPlayed' && key !== 'bandPlay') assert.ok(html.includes(text), text)
+      // State-dependent labels: the daily tag after playing, "Per a tothom" before, the band's resume label while paused.
+      for (const [key, text] of Object.entries(copy)) if (key !== 'dailyPlayed' && key !== 'bandPlay' && (key !== 'dailyFresh' || state === 'new')) assert.ok(html.includes(text), text)
       for (const [, id] of nav.matchAll(/aria-describedby="([^"]+)"/g)) assert.ok(html.includes(`id="${id}"`))
-      assert.ok(nav.includes(`#${challenge.number}`))
-      assert.ok(nav.includes(state === 'new' ? d.sameForEveryone : state === 'won' ? d.wonWith(0) : d.lost))
+      // The title keeps its own line; the number leads the status caption (no "Paraula del / dia #80" break).
+      assert.ok(nav.includes(`<span class="daily-head"><span class="daily-title">${d.title}</span>`))
+      assert.ok(nav.includes(`<span class="daily-caption solo-caption"><span class="daily-number">#${challenge.number}</span><span class="daily-sep" aria-hidden="true"> · </span>${state === 'new' ? copy.dailyFresh : state === 'won' ? d.wonWith(0) : d.lost}`))
+      assert.ok(nav.includes(`<span class="solo-option-text"><span class="solo-option-label">${copy.learning}</span> <span class="solo-caption">${copy.learningCaption}</span></span>`))
       assert.equal(nav.includes(d.comeBackTomorrow), state !== 'new')
       assert.ok(!nav.replace(d.title, '').toLowerCase().includes(challenge.entry.answerCa.toLowerCase()))
       assert.ok(!html.includes(challenge.entry.definitionCa))
