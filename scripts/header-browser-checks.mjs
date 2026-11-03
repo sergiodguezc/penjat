@@ -26,8 +26,8 @@ export async function checkSiteHeader({ context, command, evaluate, waitFor, nav
     const menu = JSON.parse(await evaluate(context, "JSON.stringify({ bottom: document.querySelector('.site-menu').getBoundingClientRect().bottom, overflow: document.documentElement.scrollWidth > innerWidth, links: [...document.querySelectorAll('.site-menu-list a')].map((a) => [a.getAttribute('href'), a.textContent, a.getAttribute('aria-current'), a.getBoundingClientRect().height]) })"))
     assert.ok(menu.bottom <= 844 * .6, `Menu uses ${menu.bottom}px of the viewport`)
     assert.equal(menu.overflow, false)
-    assert.deepEqual(menu.links.map(([href]) => href), ['/', '/multijugador', '/aprendre', '/paraula-del-dia', '/com-es-juga'])
-    assert.deepEqual(menu.links.map(([, text]) => text), language === 'ca' ? ['Inici', 'Multijugador', 'Aprèn vocabulari', 'Paraula del dia', 'Com es juga'] : ['Inicio', 'Multijugador', 'Aprende vocabulario', 'Palabra del día', 'Cómo se juega'])
+    assert.deepEqual(menu.links.map(([href]) => href), ['/', '/multijugador', '/passa-el-mobil', '/paraula-del-dia', '/aprendre', '/com-es-juga'])
+    assert.deepEqual(menu.links.map(([, text]) => text), language === 'ca' ? ['Inici', 'En línia', 'Passa el mòbil', 'Paraula del dia', 'Aprèn vocabulari', 'Com es juga'] : ['Inicio', 'En línea', 'Pasa el móvil', 'Palabra del día', 'Aprende vocabulario', 'Cómo se juega'])
     assert.equal(menu.links[0][2], 'page')
     assert.ok(menu.links.every(([, , , height]) => height >= 44))
     await key('')
@@ -76,6 +76,32 @@ export async function checkSiteHeader({ context, command, evaluate, waitFor, nav
     await navigate(context, '/com-es-juga')
     await waitFor(context, "document.querySelector('.howto-card') !== null")
     assert.equal(await evaluate(context, "getComputedStyle(document.querySelector('.site-header')).position"), 'sticky', 'Desktop content pages keep the header in reach')
+
+    // Five inline sections from the 1000px breakpoint: one row, clear of the wordmark and the CA/ES pill.
+    for (const width of [1000, 1050, 1100, 1280]) {
+      await viewport(width, 800)
+      const bar = JSON.parse(await evaluate(context, `JSON.stringify((() => {
+        const box = (element) => element.getBoundingClientRect()
+        const links = [...document.querySelectorAll('.site-nav a')].map(box)
+        return { count: links.length, rows: new Set(links.map((link) => Math.round(link.top))).size, brand: box(document.querySelector('.site-brand')).right,
+          first: links[0].left, last: links.at(-1).right, actions: box(document.querySelector('.site-actions')).left, overflow: document.documentElement.scrollWidth > innerWidth }
+      })())`))
+      assert.deepEqual([bar.count, bar.rows, bar.overflow], [5, 1, false], `${language} header at ${width}: ${JSON.stringify(bar)}`)
+      assert.ok(bar.first >= bar.brand + 8 && bar.last <= bar.actions - 8, `${language} header links overlap at ${width}: ${JSON.stringify(bar)}`)
+    }
+    await navigate(context, '/passa-el-mobil')
+    await waitFor(context, "document.querySelector('.local-setup-page') !== null")
+    assert.equal(await evaluate(context, "document.querySelector('.site-nav a[aria-current=page]').getAttribute('href')"), '/passa-el-mobil')
+
+    // The footer lists the same five sections at every width, as real links with 44px targets.
+    for (const width of [390, 768]) {
+      await viewport(width, 844)
+      await navigate(context, '/com-es-juga')
+      await waitFor(context, "document.querySelector('.site-footer nav') !== null")
+      const footer = JSON.parse(await evaluate(context, "JSON.stringify([...document.querySelectorAll('.site-footer nav a')].map((a) => [a.getAttribute('href'), a.getBoundingClientRect().height, a.getBoundingClientRect().right <= innerWidth]))"))
+      assert.deepEqual(footer.map(([href]) => href), ['/multijugador', '/passa-el-mobil', '/paraula-del-dia', '/aprendre', '/com-es-juga'], `Footer links at ${width}`)
+      assert.ok(footer.every(([, height, inside]) => height >= 44 && inside), `Footer link targets at ${width}`)
+    }
   }
 
   // A room is never left silently: header links ask first, cancelling keeps the room, confirming leaves it.

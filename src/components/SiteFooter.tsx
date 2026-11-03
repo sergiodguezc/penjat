@@ -7,7 +7,7 @@ type Props = { language: Language; onNavigate: (route: Route) => void }
 
 export function SiteFooter({ language, onNavigate }: Props) {
   const t = navigationTranslations[language]
-  const labels = { multiplayer: t.multiplayer, learning: t.learning, daily: t.daily, help: t.help }
+  const labels = { multiplayer: t.multiplayer, local: t.local, learning: t.learning, daily: t.daily, help: t.help }
   return <footer className="site-footer">
     <div className="site-footer-inner">
       <div>

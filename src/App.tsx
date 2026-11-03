@@ -363,7 +363,7 @@ function App() {
   }
   useEffect(() => { popStateHandler.current = handlePopState })
   const exitDialog = pendingExit ? <ExitConfirmationDialog language={interfaceLanguage} kind={pendingExit.kind} onCancel={cancelExit} onConfirm={confirmExit} /> : null
-  const section = !route ? undefined : room || restoreStatus !== 'idle' ? 'multiplayer' : view === 'local' ? undefined : view
+  const section = !route ? undefined : room || restoreStatus !== 'idle' ? 'multiplayer' : view
   const header = (exit?: { label: string; onExit: () => void }) => <SiteHeader language={interfaceLanguage} current={section} onLanguage={changeInterfaceLanguage}
     onNavigate={navigate} exit={exit} sticky={!room && (view === 'home' || view === 'help' || view === 'multiplayer')} />
   const footer = <SiteFooter language={interfaceLanguage} onNavigate={navigate} />

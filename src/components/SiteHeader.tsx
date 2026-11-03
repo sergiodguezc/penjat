@@ -34,7 +34,7 @@ export function SiteHeader({ language, current, onLanguage, onNavigate, exit, st
   const headerRef = useRef<HTMLElement>(null)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const menuId = useId()
-  const labels: Record<Exclude<Section, 'home'>, string> = { multiplayer: t.multiplayer, learning: t.learning, daily: t.daily, help: t.help }
+  const labels: Record<Exclude<Section, 'home'>, string> = { multiplayer: t.multiplayer, local: t.local, learning: t.learning, daily: t.daily, help: t.help }
 
   // A new page, or a layout with the full navigation, never keeps the menu open.
   useEffect(() => setOpen(false), [current])

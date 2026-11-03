@@ -137,12 +137,12 @@ export async function checkHomeNavigation({ context, command, evaluate, waitFor,
     assert.equal(await evaluate(context, 'window.homeNavigationSentinel'), 42)
   }
   assert.equal(await evaluate(context, "JSON.stringify([document.title, document.querySelector('meta[name=description]').content, document.querySelector('link[rel=canonical]').href])"), head, 'Homepage metadata restored after history navigation')
-  // Real keyboard navigation: skip link, brand, the four header sections, both interface languages, then the page's mode links.
+  // Real keyboard navigation: skip link, brand, the five header sections, both interface languages, then the page's mode links.
   await command('browsingContext.setViewport', { context, viewport: { width: 1024, height: 768 } })
   await navigate(context, '/')
   await waitFor(context, "document.querySelector('.home-modes') !== null")
   const tab = () => command('input.performActions', { context, actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value: '\uE004' }, { type: 'keyUp', value: '\uE004' }] }] })
-  for (const href of ['#contingut', '/', '/multijugador', '/aprendre', '/paraula-del-dia', '/com-es-juga']) {
+  for (const href of ['#contingut', '/', '/multijugador', '/passa-el-mobil', '/paraula-del-dia', '/aprendre', '/com-es-juga']) {
     await tab()
     assert.equal(await evaluate(context, 'document.activeElement.getAttribute("href")'), href)
     assert.equal(await evaluate(context, 'document.activeElement.matches(":focus-visible")'), true)

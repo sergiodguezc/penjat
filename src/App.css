@@ -103,12 +103,15 @@ button { cursor: pointer; }
 .site-footer ul { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); margin: 0; padding: 0; list-style: none; }
 .site-footer a { display: inline-flex; align-items: center; min-height: 2.75rem; color: var(--ink); font-size: var(--text-meta); font-weight: var(--weight-semibold); text-decoration: underline transparent 2px; text-underline-offset: 4px; }
 .site-footer a:hover { text-decoration-color: var(--magrana); }
-/* Below the inline header navigation (1000px) the sections live in the header menu, so the footer keeps only the brand
-   and tagline, compactly (display: none also removes the links from keyboard and screen-reader order). */
+/* Below the inline header navigation (1000px) the footer still lists every section (the header has them only in its
+   menu): the links take their own row under the brand, two columns on phones. */
 @media (max-width: 62.4375em) {
   .site-footer { margin-top: var(--space-12); }
   .site-footer-inner { padding-block: var(--space-5) calc(env(safe-area-inset-bottom, 0px) + var(--space-5)); }
-  .site-footer nav { display: none; }
+  .site-footer nav { flex-basis: 100%; }
+}
+@media (max-width: 37.4375em) {
+  .site-footer ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-4); }
 }
 
 /* Page heads: a colour eyebrow, an expressive Fraunces heading with an accent word and a short lede. */
