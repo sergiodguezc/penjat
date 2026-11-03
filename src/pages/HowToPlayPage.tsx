@@ -36,7 +36,7 @@ const copy = {
     },
     leaving: {
       title: 'Si marxes de la sala',
-      items: ['Si perds la connexió, tens 25 segons per tornar-hi i continuar amb els teus punts.', 'Si marxes, no participes en els torns futurs ni en la classificació activa.', 'Els punts acumulats es conserven i apareixen a «Ja no són a la sala».'],
+      items: ['Si perds la connexió, tens dos minuts per tornar-hi i continuar amb els teus punts.', 'Si marxes, no participes en els torns futurs ni en la classificació activa.', 'Els punts acumulats es conserven i apareixen a «Ja no són a la sala».'],
     },
     matchEnd: {
       title: 'Final de la partida',
@@ -83,7 +83,7 @@ const copy = {
     },
     leaving: {
       title: 'Si sales de la sala',
-      items: ['Si pierdes la conexión, tienes 25 segundos para volver y seguir con tus puntos.', 'Si te vas, no participas en los turnos futuros ni en la clasificación activa.', 'Conservas los puntos acumulados, que aparecen en «Ya no están en la sala».'],
+      items: ['Si pierdes la conexión, tienes dos minutos para volver y seguir con tus puntos.', 'Si te vas, no participas en los turnos futuros ni en la clasificación activa.', 'Conservas los puntos acumulados, que aparecen en «Ya no están en la sala».'],
     },
     matchEnd: {
       title: 'Final de la partida',

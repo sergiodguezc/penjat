@@ -99,4 +99,4 @@ Railway supplies `PORT`; do not override it. Use one replica.
 
 ## Important limitations
 
-Rooms, scores, words, and chat history are stored only in server memory. A server restart removes active matches. Multiple server replicas do not share state, so deploy this version as exactly one Node process/Render instance. Browser refreshes and transient disconnects can resume within the 25-second grace period, but cannot survive a server restart or a request routed to another replica.
+Rooms, scores, words, and chat history are stored only in server memory. A server restart removes active matches. Multiple server replicas do not share state, so deploy this version as exactly one Node process/Render instance. Browser refreshes and transient disconnects can resume within the two-minute grace period, but cannot survive a server restart or a request routed to another replica.

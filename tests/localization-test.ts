@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { INTERFACE_LANGUAGE_STORAGE_KEY, readInterfaceLanguage } from '../src/localization'
@@ -50,6 +51,12 @@ assert.deepEqual(Object.keys(notFoundTranslations.ca), Object.keys(notFoundTrans
 
 const howToCa = renderToStaticMarkup(React.createElement(HowToPlayPage, { language: 'ca' }))
 const howToEs = renderToStaticMarkup(React.createElement(HowToPlayPage, { language: 'es' }))
+// The reconnection help names the server's absence grace period (read as text: no server runtime in this test).
+const graceMinutes = Number(readFileSync('server/game/GameManager.ts', 'utf8').match(/ABSENCE_GRACE_MS = (\d+) \* 60_000/)![1])
+const minuteWords = { ca: ['', 'un minut', 'dos minuts'], es: ['', 'un minuto', 'dos minutos'] }
+assert.ok(howToCa.includes(`tens ${minuteWords.ca[graceMinutes]} per tornar-hi`), 'CA reconnection grace period')
+assert.ok(howToEs.includes(`tienes ${minuteWords.es[graceMinutes]} para volver`), 'ES reconnection grace period')
+assert.ok(!/segons per tornar-hi|segundos para volver/.test(howToCa + howToEs))
 assert.match(howToCa, /Rondes i torns/)
 assert.match(howToCa, /Puntuació/)
 assert.match(howToCa, /Qui l’ha triada pot observar el progrés de cada jugador/)
